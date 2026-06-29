@@ -1,0 +1,97 @@
+<UserControl x:Class="DepinTracker.App.Views.DashboardView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:DepinTracker.App.ViewModels"
+             xmlns:sp="clr-namespace:ScottPlot.WPF;assembly=ScottPlot.WPF"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance vm:DashboardViewModel}">
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <DockPanel Grid.Row="0">
+            <Button DockPanel.Dock="Right" Content="Refresh" Command="{Binding RefreshCommand}" />
+            <TextBlock Text="Dashboard" Style="{StaticResource Heading}" VerticalAlignment="Center" />
+        </DockPanel>
+
+        <!-- Headline metric cards -->
+        <UniformGrid Grid.Row="1" Columns="3" Margin="0,4">
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="Portfolio value" Style="{StaticResource Caption}" />
+                    <TextBlock Text="{Binding PortfolioValue}" FontSize="22" FontWeight="Bold" />
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="Rewards" Style="{StaticResource Caption}" />
+                    <TextBlock Text="{Binding RewardCount}" FontSize="22" FontWeight="Bold" />
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="Missing prices" Style="{StaticResource Caption}" />
+                    <TextBlock Text="{Binding MissingPriceCount}" FontSize="22" FontWeight="Bold" />
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="Projects" Style="{StaticResource Caption}" />
+                    <TextBlock Text="{Binding ProjectCount}" FontSize="22" FontWeight="Bold" />
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="Wallets" Style="{StaticResource Caption}" />
+                    <TextBlock Text="{Binding WalletCount}" FontSize="22" FontWeight="Bold" />
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="Sync / health" Style="{StaticResource Caption}" />
+                    <TextBlock Text="{Binding SyncState}" TextWrapping="Wrap" FontSize="13" />
+                    <TextBlock Text="{Binding DatabaseHealth}" Style="{StaticResource Caption}" Margin="0,4,0,0" />
+                </StackPanel>
+            </Border>
+        </UniformGrid>
+
+        <Border Grid.Row="2" Style="{StaticResource Card}">
+            <!-- One graph at a time, with header tabs to toggle. Each WpfPlot stays
+                 alive in the visual tree so switching tabs is instant. -->
+            <TabControl Background="Transparent" BorderThickness="0" Padding="0">
+                <TabItem Header="Rewards value by month">
+                    <sp:WpfPlot x:Name="RewardsPlot" Margin="0,6,0,0" />
+                </TabItem>
+                <TabItem Header="Tokens per month">
+                    <sp:WpfPlot x:Name="TokensPlot" Margin="0,6,0,0" />
+                </TabItem>
+            </TabControl>
+        </Border>
+
+        <Border Grid.Row="3" Style="{StaticResource Card}" MaxHeight="240">
+            <DockPanel>
+                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+                    <Button DockPanel.Dock="Right" Content="Show all years"
+                            Command="{Binding ClearYearFilterCommand}" Padding="8,2" />
+                    <TextBlock VerticalAlignment="Center" Style="{StaticResource Caption}"
+                               Text="Income per year — click a row to filter the charts above." />
+                </DockPanel>
+                <DataGrid ItemsSource="{Binding Years}" SelectedItem="{Binding SelectedYear, Mode=TwoWay}"
+                          AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
+                          GridLinesVisibility="Horizontal" SelectionMode="Single">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Year" Binding="{Binding Year}" Width="100" />
+                        <DataGridTextColumn Header="Rewards" Binding="{Binding RewardCount}" Width="100" />
+                        <DataGridTextColumn Header="Total income" Binding="{Binding FiatValue}" Width="*" />
+                    </DataGrid.Columns>
+                </DataGrid>
+            </DockPanel>
+        </Border>
+    </Grid>
+</UserControl>

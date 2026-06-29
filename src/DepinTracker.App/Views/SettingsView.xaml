@@ -1,0 +1,101 @@
+<UserControl x:Class="DepinTracker.App.Views.SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:DepinTracker.App.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance vm:SettingsViewModel}">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="10">
+            <TextBlock Text="Settings &amp; Diagnostics" Style="{StaticResource Heading}" />
+
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="Reporting" FontWeight="SemiBold" Margin="0,0,0,6" />
+                    <TextBlock>
+                        <!-- Run.Text binds TwoWay by default; the view-model props are get-only, so force OneWay. -->
+                        <Run Text="Reporting currency: " Foreground="#666" /><Run Text="{Binding ReportingCurrency, Mode=OneWay}" />
+                    </TextBlock>
+                    <TextBlock>
+                        <Run Text="Price currency: " Foreground="#666" /><Run Text="{Binding PriceCurrency, Mode=OneWay}" />
+                    </TextBlock>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="Portable folders" FontWeight="SemiBold" Margin="0,0,0,6" />
+                    <ItemsControl ItemsSource="{Binding Paths}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}" FontFamily="Consolas" FontSize="12" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="Loaded providers" FontWeight="SemiBold" Margin="0,0,0,6" />
+                    <ItemsControl ItemsSource="{Binding Providers}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}" FontSize="12" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="Plugins" FontWeight="SemiBold" Margin="0,0,0,6" />
+                    <ItemsControl ItemsSource="{Binding Plugins}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}" FontSize="12" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="Etherscan v2 API key" FontWeight="SemiBold" Margin="0,0,0,6" />
+                    <TextBlock TextWrapping="Wrap" Style="{StaticResource Caption}" Margin="0,0,0,4">
+                        Required for EVM on-chain import. One key serves every supported EVM chain. Free tier is enough for personal use — create one at
+                        <Hyperlink NavigateUri="https://etherscan.io/apis">etherscan.io/apis</Hyperlink>.
+                    </TextBlock>
+                    <TextBox Text="{Binding EtherscanApiKey, UpdateSourceTrigger=PropertyChanged}"
+                             FontFamily="Consolas" FontSize="12" />
+                    <Button Content="Save API key" Command="{Binding SaveEtherscanApiKeyCommand}" HorizontalAlignment="Left" />
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="Helius API key" FontWeight="SemiBold" Margin="0,0,0,6" />
+                    <TextBlock TextWrapping="Wrap" Style="{StaticResource Caption}" Margin="0,0,0,4">
+                        Required for Solana on-chain import (SPL token transfers). Genuinely free tier (~100k credits/month) from
+                        <Hyperlink NavigateUri="https://www.helius.dev">helius.dev</Hyperlink> — sign in, create an API key.
+                    </TextBlock>
+                    <TextBox Text="{Binding HeliusApiKey, UpdateSourceTrigger=PropertyChanged}"
+                             FontFamily="Consolas" FontSize="12" />
+                    <Button Content="Save API key" Command="{Binding SaveHeliusApiKeyCommand}" HorizontalAlignment="Left" />
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="Backup" FontWeight="SemiBold" Margin="0,0,0,6" />
+                    <TextBlock Text="Creates a verified zip of all three databases under the backups folder."
+                               Style="{StaticResource Caption}" TextWrapping="Wrap" />
+                    <Button Content="Create backup now" Command="{Binding CreateBackupCommand}" HorizontalAlignment="Left" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

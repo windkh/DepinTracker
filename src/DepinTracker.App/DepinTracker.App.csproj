@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>DepinTracker.App</RootNamespace>
+    <AssemblyName>DepinTracker.App</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DepinTracker.Infrastructure\DepinTracker.Infrastructure.csproj" />
+    <!-- Build the sample plugin alongside the app but do NOT link it: it is loaded
+         dynamically from the plugins/ folder at runtime to prove the plugin model. -->
+    <ProjectReference Include="..\..\samples\DepinTracker.Plugins.SampleCsvPrice\DepinTracker.Plugins.SampleCsvPrice.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <Private>false</Private>
+    </ProjectReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.9" />
+    <PackageReference Include="ScottPlot.WPF" Version="5.1.59" />
+  </ItemGroup>
+
+  <!-- Ship a default config file under config/ in the output. -->
+  <ItemGroup>
+    <Content Include="config\appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <!-- Copy the built sample plugin (and its offline price CSV) into the portable plugins/ folder. -->
+  <Target Name="CopySamplePlugin" AfterTargets="Build">
+    <ItemGroup>
+      <_SamplePluginOutput Include="..\..\samples\DepinTracker.Plugins.SampleCsvPrice\bin\$(Configuration)\net9.0\DepinTracker.Plugins.SampleCsvPrice.dll" />
+      <_SamplePluginCsv Include="..\..\samples\DepinTracker.Plugins.SampleCsvPrice\prices.csv" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_SamplePluginOutput)" DestinationFolder="$(OutDir)plugins"
+          SkipUnchangedFiles="true" Condition="Exists('%(_SamplePluginOutput.FullPath)')" />
+    <Copy SourceFiles="@(_SamplePluginCsv)" DestinationFolder="$(OutDir)plugins"
+          SkipUnchangedFiles="true" Condition="Exists('%(_SamplePluginCsv.FullPath)')" />
+  </Target>
+
+</Project>

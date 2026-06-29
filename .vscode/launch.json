@@ -1,0 +1,16 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Launch DePIN Tracker (WPF)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build",
+      "program": "${workspaceFolder}/src/DepinTracker.App/bin/Debug/net9.0-windows/DepinTracker.App.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/src/DepinTracker.App/bin/Debug/net9.0-windows",
+      "console": "internalConsole",
+      "stopAtEntry": false
+    }
+  ]
+}

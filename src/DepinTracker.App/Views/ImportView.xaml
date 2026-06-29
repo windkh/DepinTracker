@@ -1,0 +1,79 @@
+<UserControl x:Class="DepinTracker.App.Views.ImportView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:DepinTracker.App.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance vm:ImportViewModel}">
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="Import Rewards" Style="{StaticResource Heading}" />
+
+        <Border Grid.Row="1" Style="{StaticResource Card}">
+            <StackPanel>
+                <TextBlock Text="Wallet" Style="{StaticResource Caption}" />
+                <ComboBox ItemsSource="{Binding Wallets}" SelectedItem="{Binding SelectedWallet}" Margin="0,2,0,8">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock>
+                                <Run Text="{Binding BlockchainKey}" /><Run Text=" · " /><Run Text="{Binding Address}" />
+                            </TextBlock>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+
+                <StackPanel Orientation="Horizontal">
+                    <Button Content="Import on-chain (selected wallet)" Command="{Binding ImportOnChainCommand}" />
+                    <Button Content="Import all active wallets" Command="{Binding ImportAllActiveCommand}" Margin="8,4,0,0" />
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <Border Grid.Row="2" Style="{StaticResource Card}" VerticalAlignment="Top">
+            <StackPanel>
+                <TextBlock Text="Manual reward entry" FontWeight="SemiBold" Margin="0,0,0,6" />
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,6,0">
+                        <TextBlock Text="Token symbol" Style="{StaticResource Caption}" />
+                        <TextBox Text="{Binding TokenSymbol, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
+                    <StackPanel Grid.Row="0" Grid.Column="1">
+                        <TextBlock Text="Amount" Style="{StaticResource Caption}" />
+                        <TextBox Text="{Binding Amount, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,6,0">
+                        <TextBlock Text="Date (UTC)" Style="{StaticResource Caption}" />
+                        <DatePicker SelectedDate="{Binding Date}" Margin="0,2,0,6" />
+                    </StackPanel>
+                    <StackPanel Grid.Row="1" Grid.Column="1">
+                        <TextBlock Text="Kind" Style="{StaticResource Caption}" />
+                        <ComboBox ItemsSource="{Binding Kinds}" SelectedItem="{Binding SelectedKind}" Margin="0,2,0,6" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2">
+                        <TextBlock Text="Transaction hash (optional)" Style="{StaticResource Caption}" />
+                        <TextBox Text="{Binding TxHash, UpdateSourceTrigger=PropertyChanged}" />
+                        <Button Content="Add manual reward" Command="{Binding ImportManualCommand}" HorizontalAlignment="Left" />
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

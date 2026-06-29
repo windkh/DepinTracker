@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    # WPF requires Windows; the whole solution is built and tested on windows-latest.
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Restore
+        run: dotnet restore DepinTracker.sln
+
+      - name: Build
+        run: dotnet build DepinTracker.sln --configuration Release --no-restore
+
+      - name: Test (with coverage)
+        run: >-
+          dotnet test tests/DepinTracker.Tests/DepinTracker.Tests.csproj
+          --configuration Release --no-build
+          --collect:"XPlat Code Coverage"
+          --results-directory ./TestResults
+
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-coverage
+          path: ./TestResults/**/coverage.cobertura.xml
+          if-no-files-found: warn

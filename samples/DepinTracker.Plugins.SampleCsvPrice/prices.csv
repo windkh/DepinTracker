@@ -1,0 +1,8 @@
+# Sample offline price data for the CSV price provider plugin.
+# Columns: tokenId,date,currency,price   (date as yyyy-MM-dd)
+# tokenId is matched against the reward's token symbol (uppercased).
+ETH,2025-01-02,USD,3380.50
+ETH,2025-01-03,USD,3401.10
+MATIC,2025-01-02,USD,0.4720
+POL,2025-01-02,USD,0.4720
+USDC,2025-01-02,USD,1.0000

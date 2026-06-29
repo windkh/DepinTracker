@@ -1,0 +1,42 @@
+## .NET build output
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+*.user
+*.suo
+*.userprefs
+
+## VS / Rider / VS Code
+.vs/
+.idea/
+*.DotSettings.user
+
+## Test / coverage
+[Tt]est[Rr]esults/
+coverage/
+*.coverage
+*.coveragexml
+*.trx
+**/coverage.cobertura.xml
+
+## NuGet
+*.nupkg
+.nuget/
+
+## Portable runtime data (must never be committed)
+/config/
+/data/
+/cache/
+/logs/
+/exports/
+/backups/
+/plugins/*.dll
+# but keep the sample plugin's place documented
+!/plugins/.gitkeep
+
+## OS
+Thumbs.db
+.DS_Store

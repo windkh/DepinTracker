@@ -1,0 +1,63 @@
+<UserControl x:Class="DepinTracker.App.Views.TransactionsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:DepinTracker.App.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance vm:TransactionsViewModel}">
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <DockPanel Grid.Row="0">
+            <Button DockPanel.Dock="Right" Content="Refresh" Command="{Binding RefreshCommand}" />
+            <TextBlock Text="Transactions" Style="{StaticResource Heading}" VerticalAlignment="Center" />
+        </DockPanel>
+
+        <Border Grid.Row="1" Style="{StaticResource Card}">
+            <DataGrid ItemsSource="{Binding Rows}"
+                      AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
+                      GridLinesVisibility="Horizontal" CanUserSortColumns="True">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Date (UTC)" Binding="{Binding TimestampUtc, StringFormat=yyyy-MM-dd HH:mm}" Width="140" SortMemberPath="TimestampUtc" />
+                    <DataGridTextColumn Header="Wallet" Binding="{Binding WalletLabel}" Width="160" />
+                    <DataGridTextColumn Header="Chain" Binding="{Binding Chain}" Width="90" />
+                    <DataGridTextColumn Header="Token" Binding="{Binding TokenSymbol}" Width="80" />
+                    <DataGridTextColumn Header="Amount" Binding="{Binding Amount}" Width="120" />
+                    <DataGridTextColumn Header="Kind" Binding="{Binding Kind}" Width="90" />
+                    <DataGridTextColumn Header="From" Binding="{Binding FromAddress}" Width="160" />
+                    <DataGridTextColumn Binding="{Binding UnitPrice}" Width="120">
+                        <DataGridTextColumn.Header>
+                            <TextBlock Text="Unit price" ToolTip="Provider-resolved price per token on the reward's date, in the configured price currency (default USD)." />
+                        </DataGridTextColumn.Header>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Binding="{Binding FxRate}" Width="100">
+                        <DataGridTextColumn.Header>
+                            <TextBlock>
+                                <Run Text="FX (USD→" /><Run Text="{Binding DataContext.ReportingCurrency, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=OneWay}" /><Run Text=")" />
+                            </TextBlock>
+                        </DataGridTextColumn.Header>
+                    </DataGridTextColumn>
+                    <DataGridTemplateColumn Width="130">
+                        <DataGridTemplateColumn.Header>
+                            <TextBlock>
+                                <Run Text="Fiat value (" /><Run Text="{Binding DataContext.ReportingCurrency, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=OneWay}" /><Run Text=")" />
+                            </TextBlock>
+                        </DataGridTemplateColumn.Header>
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <!-- Hover the cell to see the full calculation: amount × unit price × FX rate. -->
+                                <TextBlock Text="{Binding FiatValue}" ToolTip="{Binding Calculation}" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTextColumn Header="Tx hash" Binding="{Binding TxHash}" Width="*" />
+                    <DataGridTextColumn Header="Provider" Binding="{Binding Provider}" Width="100" />
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
+    </Grid>
+</UserControl>
