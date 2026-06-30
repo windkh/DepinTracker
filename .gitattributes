@@ -1,0 +1,38 @@
+# Line-ending policy for this repo.
+#
+# `text=auto` lets Git auto-detect text vs binary on first encounter and store
+# all text files with LF in the repo. The working tree uses CRLF on Windows
+# (matches .editorconfig's `end_of_line = crlf`) and LF on Unix-likes, regardless
+# of the user's global `core.autocrlf` setting. This silences the recurring
+# "LF will be replaced by CRLF the next time Git touches it" warnings without
+# requiring every contributor to tweak their git config.
+* text=auto
+
+# Explicit text classifications so attribute decisions don't depend on heuristics
+# for files added later.
+*.cs        text diff=csharp
+*.csproj    text
+*.sln       text
+*.props     text
+*.targets   text
+*.xaml      text
+*.json      text
+*.md        text
+*.yml       text
+*.yaml      text
+*.sql       text
+*.editorconfig text
+.gitignore  text
+.gitattributes text
+
+# Explicit binaries — none in the repo today, but pin the rule for the common
+# ones so future additions don't get accidentally line-ending-converted.
+*.dll       binary
+*.exe       binary
+*.pdb       binary
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.ico       binary
+*.zip       binary
