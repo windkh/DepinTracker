@@ -55,6 +55,7 @@ public static class DependencyInjection
         services.AddSingleton<IPriceCache, PriceCacheRepository>();
         services.AddSingleton<IExchangeRateCache, ExchangeRateCacheRepository>();
         services.AddSingleton<IUserSettingsStore, UserSettingsStore>();
+        services.AddSingleton<IDispositionRepository, DispositionRepository>();
         services.AddSingleton<IBackupService, BackupService>();
 
         // Report exporters — print-styled HTML serves as the PDF path

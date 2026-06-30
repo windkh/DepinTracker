@@ -20,20 +20,26 @@ public sealed class TaxReportGenerator
     private readonly IRewardRepository _rewards;
     private readonly IProjectRepository _projects;
     private readonly IWalletRepository _wallets;
+    private readonly IDispositionRepository _dispositions;
     private readonly ValuationService _valuation;
+    private readonly FifoMatcher _fifo;
     private readonly AppSettings _settings;
 
     public TaxReportGenerator(
         IRewardRepository rewards,
         IProjectRepository projects,
         IWalletRepository wallets,
+        IDispositionRepository dispositions,
         ValuationService valuation,
+        FifoMatcher fifo,
         AppSettings settings)
     {
         _rewards = rewards;
         _projects = projects;
         _wallets = wallets;
+        _dispositions = dispositions;
         _valuation = valuation;
+        _fifo = fifo;
         _settings = settings;
     }
 
@@ -55,52 +61,81 @@ public sealed class TaxReportGenerator
     public async Task<ReportDocument> BuildAsync(int year, Guid? projectId, bool includeDetail, CancellationToken cancellationToken)
     {
         var currency = _settings.ReportingCurrency;
-        var all = await _rewards.GetAllAsync(cancellationToken).ConfigureAwait(false);
-        IEnumerable<Domain.Entities.RewardTransaction> filtered = all.Where(r => r.TimestampUtc.UtcDateTime.Year == year);
+        var allRewards = await _rewards.GetAllAsync(cancellationToken).ConfigureAwait(false);
+        var allDisposals = await _dispositions.GetAllAsync(cancellationToken).ConfigureAwait(false);
 
+        HashSet<Guid>? walletIdSet = null;
         var projectLabel = "Alle Projekte";
         if (projectId is { } pid)
         {
             var project = await _projects.GetAsync(pid, cancellationToken).ConfigureAwait(false);
             projectLabel = project?.Name ?? "Unbekannt";
-
             var wallets = await _wallets.GetByProjectAsync(pid, cancellationToken).ConfigureAwait(false);
-            var walletIds = wallets.Select(w => w.Id).ToHashSet();
-            filtered = filtered.Where(r => walletIds.Contains(r.WalletId));
+            walletIdSet = wallets.Select(w => w.Id).ToHashSet();
         }
 
-        var inYear = filtered.ToList();
+        // FIFO needs the full reward history (across all years) so older lots can
+        // back fresher disposals; the year/project filter only constrains what
+        // appears in the report tables, not what cost-basis the matcher sees.
+        var rewardsInScope = walletIdSet is null
+            ? allRewards
+            : allRewards.Where(r => walletIdSet.Contains(r.WalletId)).ToList();
+        var disposalsInScope = walletIdSet is null
+            ? allDisposals
+            : allDisposals.Where(d => d.WalletId is not { } w || walletIdSet.Contains(w)).ToList();
 
-        var valuations = await _valuation.ValueManyAsync(inYear, cancellationToken).ConfigureAwait(false);
-        var totalEur = valuations.Where(v => v.HasPrice).Sum(v => v.Value!.Value.Amount);
-        var missing = valuations.Count(v => !v.HasPrice);
+        var rewardsInYear = rewardsInScope.Where(r => r.TimestampUtc.UtcDateTime.Year == year).ToList();
+        var valuationsInYear = await _valuation.ValueManyAsync(rewardsInYear, cancellationToken).ConfigureAwait(false);
+        var totalEur = valuationsInYear.Where(v => v.HasPrice).Sum(v => v.Value!.Value.Amount);
+        var missing = valuationsInYear.Count(v => !v.HasPrice);
 
-        var priceCurrency = valuations.FirstOrDefault(v => v.PriceCurrency is not null)?.PriceCurrency
+        // Cost basis comes from valuing every historical reward in scope, not just the
+        // ones in the report year. The matcher then keys lots by reward id.
+        var allValuations = await _valuation.ValueManyAsync(rewardsInScope, cancellationToken).ConfigureAwait(false);
+        var valuationByReward = allValuations.ToDictionary(v => v.Reward.Id, v => v);
+        var matches = _fifo.Match(rewardsInScope, valuationByReward, disposalsInScope);
+        var matchesInYear = matches
+            .Where(m => m.DisposedUtc.UtcDateTime.Year == year)
+            .ToList();
+
+        var priceCurrency = valuationsInYear.FirstOrDefault(v => v.PriceCurrency is not null)?.PriceCurrency
             ?? _settings.PriceCurrency;
-        var monthly = BuildMonthlyTable(valuations, year, currency);
-        var perToken = BuildPerTokenTable(valuations, currency);
+        var monthly = BuildMonthlyTable(valuationsInYear, year, currency);
+        var perToken = BuildPerTokenTable(valuationsInYear, currency);
         var tables = new List<ReportTable>
         {
-            BuildSummaryTable(year, currency, valuations.Count, missing, totalEur),
+            BuildSummaryTable(year, currency, valuationsInYear.Count, missing, totalEur),
             monthly,
             perToken,
             BuildMethodologyTable(currency, priceCurrency, projectLabel, projectId is not null),
         };
 
-        if (includeDetail)
+        // Only surface the disposals/FIFO section when there actually were disposals in
+        // the year — empty section adds nothing for HODL-only users.
+        if (matchesInYear.Count > 0)
         {
-            tables.Add(BuildDetailTable(valuations, currency));
+            tables.Add(BuildDisposalsTable(matchesInYear, currency));
         }
 
+        if (includeDetail)
+        {
+            tables.Add(BuildDetailTable(valuationsInYear, currency));
+        }
+
+        var realisedGain = matchesInYear
+            .Where(m => m.RealisedGain.HasValue)
+            .Sum(m => m.RealisedGain!.Value);
         var metadata = new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["Steuerjahr"] = year.ToString(CultureInfo.InvariantCulture),
             ["Projekt"] = projectLabel,
             ["Berichtswährung"] = currency,
             ["Erstellt (UTC)"] = DateTimeOffset.UtcNow.ToString("yyyy-MM-dd HH:mm 'UTC'", CultureInfo.InvariantCulture),
-            ["Transaktionen"] = valuations.Count.ToString(CultureInfo.InvariantCulture),
+            ["Transaktionen"] = valuationsInYear.Count.ToString(CultureInfo.InvariantCulture),
             ["Ohne Marktpreis"] = missing.ToString(CultureInfo.InvariantCulture),
-            ["Summe (EUR)"] = totalEur.ToString("N2", De),
+            ["Summe Rewards (EUR)"] = totalEur.ToString("N2", De),
+            ["Veräußerungen"] = matchesInYear.Count.ToString(CultureInfo.InvariantCulture),
+            ["Realisierter Gewinn (EUR)"] = realisedGain.ToString("N2", De),
             ["Hinweis"] =
                 "Diese Aufstellung basiert auf historischen Marktpreisen und EZB-Devisenkursen. " +
                 "Sie ersetzt keine Steuerberatung. Wallet-Adressen wurden zum Schutz der Privatsphäre nicht aufgeführt.",
@@ -236,6 +271,54 @@ public sealed class TaxReportGenerator
                     "Diese Aufstellung dient der Vorbereitung der Steuererklärung und ersetzt keine Steuerberatung. Die Einordnung (sonstige Einkünfte, gewerblich, etc.) ist individuell zu prüfen.",
                 },
             });
+    }
+
+    /// <summary>
+    /// Renders the FIFO matches as the "Veräußerungsgewinne" section. Each row is a
+    /// single match (one lot → one disposal slice) with acquisition / disposal dates,
+    /// quantity, cost-basis per unit, proceeds per unit, realised gain in the reporting
+    /// currency, and a §23-EStG-style holding-period flag.
+    /// </summary>
+    private static ReportTable BuildDisposalsTable(IReadOnlyList<DisposalMatch> matches, string currency)
+    {
+        var rows = matches
+            .OrderBy(m => m.DisposedUtc)
+            .Select(m =>
+            {
+                var holdingDays = (int)Math.Floor((m.DisposedUtc - m.AcquiredUtc).TotalDays);
+                var taxStatus = m.LongTerm ? "steuerfrei (≥1 Jahr)" : "steuerpflichtig (<1 Jahr)";
+                return (IReadOnlyList<string>)new[]
+                {
+                    m.DisposedUtc.UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                    m.AcquiredUtc.UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                    m.TokenSymbol,
+                    m.Kind.ToString(),
+                    m.Quantity.ToString("0.########", De),
+                    m.CostBasisPerUnit?.ToString("0.######", De) ?? "—",
+                    m.ProceedsPerUnit?.ToString("0.######", De) ?? "—",
+                    m.RealisedGain?.ToString("N2", De) ?? "—",
+                    holdingDays.ToString(CultureInfo.InvariantCulture),
+                    taxStatus,
+                };
+            })
+            .ToList();
+
+        return new ReportTable(
+            Title: "Veräußerungsgewinne (FIFO)",
+            Columns: new[]
+            {
+                "Veräußerung",
+                "Anschaffung",
+                "Token",
+                "Art",
+                "Menge",
+                "Anschaffungskosten/Einheit",
+                "Erlös/Einheit",
+                $"Gewinn ({currency})",
+                "Haltedauer (Tage)",
+                "Steuerstatus",
+            },
+            Rows: rows);
     }
 
     private static ReportTable BuildDetailTable(IReadOnlyList<RewardValuation> valuations, string currency)

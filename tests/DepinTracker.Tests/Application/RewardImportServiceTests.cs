@@ -53,6 +53,7 @@ public class RewardImportServiceTests
         var rewards = new RewardRepository(store.Factory);
         var sessions = new ImportSessionRepository(store.Factory);
         var raw = new RawResponseRepository(store.Factory);
+        var dispositions = new DispositionRepository(store.Factory);
 
         var project = new Project { Name = "Test" };
         await projects.AddAsync(project, CancellationToken.None);
@@ -60,7 +61,7 @@ public class RewardImportServiceTests
         await wallets.AddAsync(wallet, CancellationToken.None);
 
         var service = new RewardImportService(
-            rewards, sessions, raw, wallets, projects,
+            rewards, sessions, raw, wallets, projects, dispositions,
             Array.Empty<IBlockchainExplorer>(), Array.Empty<IRewardClassifier>(),
             store.Clock, NullLogger<RewardImportService>.Instance);
 

@@ -19,6 +19,7 @@ public static class DependencyInjection
         services.AddSingleton<RewardImportService>();
         services.AddSingleton<AnalyticsService>();
         services.AddSingleton<DashboardService>();
+        services.AddSingleton<FifoMatcher>();
         services.AddSingleton<TaxReportGenerator>();
         return services;
     }

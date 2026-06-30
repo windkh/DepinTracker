@@ -1,40 +1,64 @@
 # Roadmap
 
-The current release is the **foundation + one vertical slice**. This roadmap tracks what
-is implemented versus what is scaffolded as an extension point.
+The current release is the **foundation + reward-tracking vertical slice + tax report**.
+This file tracks what is shipped versus what is still scaffolded.
 
 ## Implemented
 
 - Clean-Architecture solution (Domain / Abstractions / Application / Infrastructure / App)
-- Portable folder layout; no installer/AppData/registry
+- Portable folder layout; no installer / AppData / registry
 - Three-store SQLite persistence (config / imported / generated) with versioned migrations
 - Plugin system: discovery, isolated load contexts, six extension interfaces, sample plugin
-- Real keyless HTTP providers: CoinGecko (prices), Frankfurter/ECB (FX), Blockscout (EVM explorer)
-- Offline-first price/FX engines with local cache write-back
-- Reward import (manual + on-chain) with provenance and no-overwrite dedupe
+- Built-in providers:
+  - **Prices:** DeFiLlama (contract-keyed, primary) → CoinGecko (symbol-keyed, fallback)
+  - **FX:** Frankfurter / ECB
+  - **EVM explorer:** Etherscan v2 unified API (Ethereum, Polygon, Optimism, Base, Arbitrum, BNB, Gnosis)
+  - **Solana explorer:** Helius enhanced-transactions API with batched token-metadata
+- Offline-first price/FX engines with local cache write-back; per-row HTTP + valuation logging
+- Reward import (manual + on-chain) with provenance, no-overwrite dedupe, and per-row raw-data trail
+- Per-project source-address allow-list filter (rejects unrelated airdrops at import time)
+- "Import all active wallets" multi-wallet path with truncation warning
 - Valuation (price × FX → reporting currency) with explicit missing-price handling
-- Dashboard (portfolio, counts, missing prices, sync/health, monthly rewards chart)
-- Projects/wallets management with tags and activation
-- Backup/restore/verify (hashed zip of the stores)
-- CSV + Excel (Open XML) report exporters
+- Backfill engine for `TokenContract` / `FromAddress` from saved raw responses
+- Dashboard:
+  - Headline portfolio + counts cards
+  - Rewards-value-by-month chart + tokens-per-month chart (one bar per token)
+  - Per-year income table; clicking a year filters both charts; locked Y-axis ≥ 0
+- Transactions page with `Date · Token · Amount · From · Unit price · FX rate · Fiat value`
+  and a tooltip showing the full `amount × price × FX = EUR` calculation
+- Project / wallet management — create, edit, delete, activate, plus per-project
+  "Clear imported data" that wipes rewards + raw responses + sessions in one transaction
+- App-wide **project scope** picker in the nav rail drives Dashboard / Transactions /
+  Reports / Import in one click; persisted across runs
+- User-settings store (config.db) + Settings page editors for the Etherscan and Helius API keys
+- Tax report (German Finanzamt) — year + project scoped, **HTML / DOCX / XLSX / CSV**,
+  Save-as dialog, "Methodik & Quellen" methodology section, omits wallet/source addresses
+- Backup / restore / verify (hashed zip of the three stores)
+- Auto-versioning from `git rev-list --count HEAD` stamped into the window title
 - xUnit test suite + GitHub Actions CI with coverage
 
-## Next (scaffolded as interfaces / partial)
+## Next
 
-- **Tax engine:** FIFO lot tracking, yearly reports, gains/losses. Architecture is
-  FIFO-ready; the report model and exporters exist.
-- **PDF export:** a third `IReportExporter` (CSV + XLSX are implemented).
-- **Rebuild engine:** rebuild DB / wallet / project / chain / year / prices / FX from
-  imported data + online sources. Stores are already separated to make this clean.
-- **More chains:** additional `IBlockchainExplorer` plugins (Solana, Cosmos, …) and
-  native-token reward parsing.
-- **Analytics:** richer `IAnalyticsProvider`s (holdings value over time, average
-  acquisition cost, per-project/per-wallet breakdowns).
-- **Settings UI:** editable reporting currency, provider priorities, token-id mappings.
+- **FIFO tax engine (disposals & capital gains).** Track sells/swaps as disposals,
+  match them against the reward lots in FIFO order, compute cost basis + gain +
+  holding-period flag, and add a *Veräußerungsgewinne* section to the year report.
+  Manual disposal entry first; on-chain disposal detection is a later milestone.
+- **Rebuild engine.** Re-derive `imported.db` and `generated.db` from saved raw
+  responses + online sources (per project / wallet / chain / year). Stores are
+  already separated to make this clean; useful whenever an upstream source
+  corrects historical data.
+- **Holdings-over-time analytics.** Average acquisition cost per token, holdings
+  value vs cost chart per project. Application-layer compute over existing data.
+- **Settings UI for runtime knobs.** Editable reporting currency, provider
+  priorities, and the symbol→CoinGecko-id map so power users don't have to edit
+  `appsettings.json`.
 
 ## Later
 
+- Native PDF exporter (today: HTML → browser "Save as PDF" or DOCX → Word "Export as PDF")
+- On-chain disposal detection (outgoing transfers + DEX swap parsing)
 - Scheduled background sync
 - Multi-currency reporting
 - Import from CSV statements
-- Localization
+- More chains beyond EVM + Solana (Cosmos, etc.) — interface is open, needs explorer plugins
+- Localization (UI is English today; tax report already German)

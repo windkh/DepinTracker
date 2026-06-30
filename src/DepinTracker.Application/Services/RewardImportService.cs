@@ -25,6 +25,7 @@ public sealed class RewardImportService
     private readonly IRawResponseRepository _rawResponses;
     private readonly IWalletRepository _wallets;
     private readonly IProjectRepository _projects;
+    private readonly IDispositionRepository _dispositions;
     private readonly IReadOnlyList<IBlockchainExplorer> _explorers;
     private readonly IReadOnlyList<IRewardClassifier> _classifiers;
     private readonly IClock _clock;
@@ -36,6 +37,7 @@ public sealed class RewardImportService
         IRawResponseRepository rawResponses,
         IWalletRepository wallets,
         IProjectRepository projects,
+        IDispositionRepository dispositions,
         IEnumerable<IBlockchainExplorer> explorers,
         IEnumerable<IRewardClassifier> classifiers,
         IClock clock,
@@ -46,6 +48,7 @@ public sealed class RewardImportService
         _rawResponses = rawResponses;
         _wallets = wallets;
         _projects = projects;
+        _dispositions = dispositions;
         _explorers = explorers.ToList();
         _classifiers = classifiers.ToList();
         _clock = clock;
@@ -67,10 +70,61 @@ public sealed class RewardImportService
         }
 
         var deleted = await _rewards.DeleteAllForWalletsAsync(ids, cancellationToken).ConfigureAwait(false);
+        var disposalsCleared = await _dispositions.DeleteForWalletsAsync(ids, cancellationToken).ConfigureAwait(false);
         _logger.LogInformation(
-            "Cleared imported data for project {ProjectId}: {RewardCount} reward(s) across {WalletCount} wallet(s)",
-            projectId, deleted, ids.Count);
+            "Cleared imported data for project {ProjectId}: {RewardCount} reward(s) + {DisposalCount} disposal(s) across {WalletCount} wallet(s)",
+            projectId, deleted, disposalsCleared, ids.Count);
         return deleted;
+    }
+
+    /// <summary>
+    /// Persists a manually-entered disposal (sale / swap / spend / transfer-out / loss).
+    /// Wrapped in its own import session so provenance is preserved; dedup is keyed on
+    /// wallet/chain/txhash/symbol/amount/timestamp so re-entering the same row is skipped.
+    /// </summary>
+    public async Task<ImportResult> AddManualDispositionAsync(
+        Guid? walletId,
+        string tokenSymbol,
+        decimal amount,
+        DateTimeOffset timestampUtc,
+        decimal? proceedsPerUnit,
+        string? proceedsCurrency,
+        string? txHash,
+        DepinTracker.Domain.Enums.DispositionKind kind,
+        string? notes,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(tokenSymbol)) throw new ArgumentException("Token symbol is required.", nameof(tokenSymbol));
+        if (amount <= 0m) throw new ArgumentException("Disposal amount must be positive.", nameof(amount));
+
+        string? chainKey = null;
+        if (walletId is { } wid)
+        {
+            var wallet = await _wallets.GetAsync(wid, cancellationToken).ConfigureAwait(false);
+            chainKey = wallet?.BlockchainKey;
+        }
+
+        var session = await StartSessionAsync("manual", ImportSource.Manual, walletId, cancellationToken).ConfigureAwait(false);
+
+        var record = new DispositionRecord
+        {
+            WalletId = walletId,
+            BlockchainKey = chainKey,
+            TxHash = txHash?.Trim() ?? string.Empty,
+            TimestampUtc = timestampUtc,
+            TokenSymbol = tokenSymbol.Trim().ToUpperInvariant(),
+            Amount = amount,
+            ProceedsPerUnit = proceedsPerUnit,
+            ProceedsCurrency = string.IsNullOrWhiteSpace(proceedsCurrency) ? null : proceedsCurrency!.Trim().ToUpperInvariant(),
+            Kind = kind,
+            ProviderKey = "manual",
+            ImportSessionId = session.Id,
+            Notes = string.IsNullOrWhiteSpace(notes) ? null : notes,
+            CreatedUtc = _clock.UtcNow,
+        };
+
+        var inserted = await _dispositions.AddIgnoreDuplicatesAsync(record, cancellationToken).ConfigureAwait(false);
+        return await CompleteSessionAsync(session, inserted, 1 - inserted, truncated: false, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Imports a single, manually-entered reward.</summary>
@@ -267,7 +321,7 @@ public sealed class RewardImportService
     }
 
     private async Task<ImportSession> StartSessionAsync(
-        string providerKey, ImportSource source, Guid walletId, CancellationToken cancellationToken)
+        string providerKey, ImportSource source, Guid? walletId, CancellationToken cancellationToken)
     {
         var session = new ImportSession
         {

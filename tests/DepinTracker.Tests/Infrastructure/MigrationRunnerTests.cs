@@ -12,7 +12,7 @@ public class MigrationRunnerTests
     private static readonly Dictionary<StoreKind, int> ExpectedVersions = new()
     {
         [StoreKind.Config] = 2,    // 0001_init + 0002_project_reward_sources
-        [StoreKind.Imported] = 2,  // 0001_init + 0002_reward_from_address
+        [StoreKind.Imported] = 3,  // 0001_init + 0002_reward_from_address + 0003_dispositions
         [StoreKind.Generated] = 1, // 0001_init
     };
 
