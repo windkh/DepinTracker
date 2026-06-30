@@ -33,30 +33,36 @@ This file tracks what is shipped versus what is still scaffolded.
 - User-settings store (config.db) + Settings page editors for the Etherscan and Helius API keys
 - Tax report (German Finanzamt) — year + project scoped, **HTML / DOCX / XLSX / CSV**,
   Save-as dialog, "Methodik & Quellen" methodology section, omits wallet/source addresses
+- **FIFO disposal tracking & Veräußerungsgewinne.** Manual disposal entry
+  (sale / swap / spend / transfer-out / loss), FIFO matcher splits reward lots
+  per token, cost-basis-per-unit from the reward valuation, realised gain in
+  EUR and §23-EStG holding-period flag (≥1 year ⇒ steuerfrei). Tax report
+  gains a *Veräußerungsgewinne (FIFO)* section that appears only when the year
+  has disposals.
 - Backup / restore / verify (hashed zip of the three stores)
 - Auto-versioning from `git rev-list --count HEAD` stamped into the window title
 - xUnit test suite + GitHub Actions CI with coverage
 
 ## Next
 
-- **FIFO tax engine (disposals & capital gains).** Track sells/swaps as disposals,
-  match them against the reward lots in FIFO order, compute cost basis + gain +
-  holding-period flag, and add a *Veräußerungsgewinne* section to the year report.
-  Manual disposal entry first; on-chain disposal detection is a later milestone.
-- **Rebuild engine.** Re-derive `imported.db` and `generated.db` from saved raw
-  responses + online sources (per project / wallet / chain / year). Stores are
-  already separated to make this clean; useful whenever an upstream source
+- **On-chain disposal detection.** Both Etherscan v2 and Helius already return
+  outgoing transfers; persist them as `DispositionKind.TransferOut` so FIFO
+  doesn't depend on manual entry. DEX-swap recognition (router-call →
+  outgoing leg + incoming counter-leg in the same tx) is a follow-up.
+- **Rebuild engine.** Re-derive `imported.db` and `generated.db` from saved
+  raw responses + online sources (per project / wallet / chain / year). Stores
+  are already separated to make this clean; useful whenever an upstream source
   corrects historical data.
-- **Holdings-over-time analytics.** Average acquisition cost per token, holdings
-  value vs cost chart per project. Application-layer compute over existing data.
+- **Holdings-over-time analytics.** Average acquisition cost per token,
+  holdings value vs cost chart per project. Application-layer compute over
+  existing data.
 - **Settings UI for runtime knobs.** Editable reporting currency, provider
-  priorities, and the symbol→CoinGecko-id map so power users don't have to edit
-  `appsettings.json`.
+  priorities, and the symbol→CoinGecko-id map so power users don't have to
+  edit `appsettings.json`.
 
 ## Later
 
 - Native PDF exporter (today: HTML → browser "Save as PDF" or DOCX → Word "Export as PDF")
-- On-chain disposal detection (outgoing transfers + DEX swap parsing)
 - Scheduled background sync
 - Multi-currency reporting
 - Import from CSV statements

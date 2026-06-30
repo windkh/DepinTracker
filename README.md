@@ -127,7 +127,26 @@ rows are skipped, not double-counted.
   Unit price · FX rate · Fiat value`. Hover the *Fiat value* cell to see the
   exact `amount × price × FX = EUR` calculation that produced it.
 
-### 7. Generate the tax report
+### 7. Record disposals (only if you sold, swapped, spent or transferred out)
+
+DePIN rewards are taxed as ordinary income on the day they arrive — that's
+what step 5–6 already covers. If you then **dispose** of those tokens (sell
+them on an exchange, swap them on a DEX, spend them, transfer them to a
+self-custody wallet, or lose them), §23 EStG kicks in: gains realised within
+one year of acquisition are taxable, gains after ≥ 1 year are *steuerfrei*.
+
+Open the **Import** tab and scroll to **Manual disposal entry**. Fill in:
+*Token symbol · Amount disposed · Date · Kind* (Sale / Swap / Spend /
+TransferOut / Loss) · *Proceeds per unit* in your reporting currency (leave
+0 for transfers between your own wallets) · optional *Tx hash* and *Notes*.
+Click **Add disposal**. The tax report will FIFO-match it against the
+oldest unsold reward lots of that token automatically.
+
+> On-chain disposal detection is on the roadmap — for now disposals are
+> entered by hand. The dedup key is `wallet | chain | tx | symbol | amount |
+> timestamp`, so adding the same disposal twice is harmless.
+
+### 8. Generate the tax report
 
 Open the **Reports** tab. The active project comes from the nav-rail scope —
 no per-page picker. Pick the **Tax year**, choose a **Format** (HTML for
@@ -136,8 +155,11 @@ if your Finanzamt asks for line items, click **Generate report**, and pick the
 destination folder. Default filename is `{year}_{project}_report.{ext}`.
 
 The report has German labels, EUR totals, monthly and per-token breakdowns,
-and a *Methodik & Quellen* section that documents data sources and the
-calculation formula. Wallet and source addresses are never included.
+a *Methodik & Quellen* section that documents data sources and the calculation
+formula, and — when the year has disposals — a *Veräußerungsgewinne (FIFO)*
+section with `Veräußerung · Anschaffung · Token · Art · Menge ·
+Anschaffungskosten/Einheit · Erlös/Einheit · Gewinn (EUR) · Haltedauer ·
+Steuerstatus` per matched lot. Wallet and source addresses are never included.
 
 ## Portable folder layout
 
