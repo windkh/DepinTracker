@@ -20,6 +20,56 @@
     <Company>DePIN Tracker</Company>
     <Copyright>Copyright (c) DePIN Tracker contributors</Copyright>
     <NeutralLanguage>en</NeutralLanguage>
+
+    <!--
+      Version is auto-derived from the git history: the patch component is the
+      total commit count on the current branch (so every commit bumps it),
+      InformationalVersion appends the short SHA. The Major/Minor pair below is
+      the only piece bumped manually — increment Minor on user-visible features,
+      Major when there is a breaking change. If git is unavailable the build
+      falls back to "{Major}.{Minor}.0".
+    -->
+    <VersionMajor>0</VersionMajor>
+    <VersionMinor>1</VersionMinor>
+    <Version>$(VersionMajor).$(VersionMinor).0</Version>
+    <!--
+      The .NET SDK auto-appends the SourceRevisionId (full SHA) to InformationalVersion,
+      which collides with the short-SHA suffix our git target sets. Disable the SDK's
+      appendage so the title stays readable.
+    -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
   </PropertyGroup>
+
+  <Target Name="SetVersionFromGit" BeforeTargets="GetAssemblyVersion;GenerateAssemblyInfo;PrepareForBuild">
+    <!--
+      Run git once per build to compute the commit count + short SHA. Errors are
+      swallowed (ContinueOnError + Condition checks below) so builds outside a
+      git checkout still succeed with the default "{Major}.{Minor}.0" version.
+    -->
+    <Exec Command="git rev-list --count HEAD"
+          ConsoleToMSBuild="true"
+          IgnoreExitCode="true"
+          ContinueOnError="WarnAndContinue"
+          StandardOutputImportance="low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_GitCommitCount" />
+      <Output TaskParameter="ExitCode" PropertyName="_GitCommitCountExitCode" />
+    </Exec>
+    <Exec Command="git rev-parse --short HEAD"
+          ConsoleToMSBuild="true"
+          IgnoreExitCode="true"
+          ContinueOnError="WarnAndContinue"
+          StandardOutputImportance="low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_GitShortSha" />
+      <Output TaskParameter="ExitCode" PropertyName="_GitShortShaExitCode" />
+    </Exec>
+
+    <PropertyGroup Condition="'$(_GitCommitCountExitCode)' == '0' AND '$(_GitCommitCount)' != ''">
+      <Version>$(VersionMajor).$(VersionMinor).$(_GitCommitCount)</Version>
+      <AssemblyVersion>$(VersionMajor).$(VersionMinor).$(_GitCommitCount).0</AssemblyVersion>
+      <FileVersion>$(VersionMajor).$(VersionMinor).$(_GitCommitCount).0</FileVersion>
+      <InformationalVersion Condition="'$(_GitShortSha)' != ''">$(Version)+$(_GitShortSha)</InformationalVersion>
+      <InformationalVersion Condition="'$(_GitShortSha)' == ''">$(Version)</InformationalVersion>
+    </PropertyGroup>
+  </Target>
 
 </Project>
