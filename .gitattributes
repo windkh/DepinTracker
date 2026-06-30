@@ -1,12 +1,11 @@
 # Line-ending policy for this repo.
 #
-# `text=auto` lets Git auto-detect text vs binary on first encounter and store
-# all text files with LF in the repo. The working tree uses CRLF on Windows
-# (matches .editorconfig's `end_of_line = crlf`) and LF on Unix-likes, regardless
-# of the user's global `core.autocrlf` setting. This silences the recurring
-# "LF will be replaced by CRLF the next time Git touches it" warnings without
-# requiring every contributor to tweak their git config.
-* text=auto
+# `eol=lf` pins both the repo storage AND the working-tree extraction to LF on
+# every platform. Modern Windows tooling (VS, VS Code, msbuild, dotnet CLI) all
+# handle LF transparently, and matching working-tree to storage means the
+# recurring "LF will be replaced by CRLF the next time Git touches it" warning
+# never fires — it only appears when on-disk and repo line endings differ.
+* text=auto eol=lf
 
 # Explicit text classifications so attribute decisions don't depend on heuristics
 # for files added later.
