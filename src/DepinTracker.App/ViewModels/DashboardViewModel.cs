@@ -31,6 +31,7 @@ public sealed class DashboardViewModel : ViewModelBase
     private IReadOnlyList<RewardsOverTimePoint> _points = Array.Empty<RewardsOverTimePoint>();
     private IReadOnlyList<YearlyRewardRow> _years = Array.Empty<YearlyRewardRow>();
     private IReadOnlyList<TokensPerMonthPoint> _tokenPoints = Array.Empty<TokensPerMonthPoint>();
+    private IReadOnlyList<TokenBreakdownRowVm> _tokenBreakdown = Array.Empty<TokenBreakdownRowVm>();
     private YearlyRewardRow? _selectedYear;
 
     public DashboardViewModel(DashboardService dashboard, IProjectScope scope) : base("Dashboard")
@@ -42,8 +43,10 @@ public sealed class DashboardViewModel : ViewModelBase
             onError: ex => StatusMessage = $"Error: {ex.Message}");
         ClearYearFilterCommand = new RelayCommand(() => SelectedYear = null, () => SelectedYear is not null);
 
-        // Reload whenever the user picks a different project in the nav rail.
+        // Reload whenever the user picks a different project in the nav rail, or when data /
+        // the income filter changes (import, clear, allowed-source save).
         _scope.ActiveProjectChanged += async (_, _) => await OnActivatedAsync(CancellationToken.None).ConfigureAwait(false);
+        _scope.DataChanged += async (_, _) => await OnActivatedAsync(CancellationToken.None).ConfigureAwait(false);
     }
 
     /// <summary>Raised after the rewards series changes so the view can redraw the chart.</summary>
@@ -91,8 +94,22 @@ public sealed class DashboardViewModel : ViewModelBase
         }
     }
 
+    /// <summary>
+    /// Per-token holdings breakdown (current project scope, all-time). Shows how many
+    /// units of each token were received, over how many transactions, and its priced
+    /// fiat value — the "how many tokens of what currency" view.
+    /// </summary>
+    public IReadOnlyList<TokenBreakdownRowVm> TokenBreakdown
+    {
+        get => _tokenBreakdown;
+        private set => SetProperty(ref _tokenBreakdown, value);
+    }
+
     /// <summary>Pre-formatted row for the per-year income table.</summary>
     public sealed record YearlyRewardRow(int Year, string FiatValue, int RewardCount);
+
+    /// <summary>Pre-formatted row for the per-token holdings table.</summary>
+    public sealed record TokenBreakdownRowVm(string Token, string Quantity, string Count, string Value, string Note);
 
     public override async Task OnActivatedAsync(CancellationToken cancellationToken)
     {
@@ -115,6 +132,19 @@ public sealed class DashboardViewModel : ViewModelBase
             _allPoints = summary.RewardsOverTime;
             _allTokenPoints = summary.TokensByMonth;
             var currency = summary.PortfolioValue.Currency;
+
+            TokenBreakdown = summary.TokenBreakdown
+                .Select(t => new TokenBreakdownRowVm(
+                    Token: t.TokenSymbol,
+                    Quantity: t.Quantity.ToString("N6", CultureInfo.InvariantCulture),
+                    Count: t.Count.ToString(CultureInfo.InvariantCulture),
+                    Value: t.FiatValue is { } f
+                        ? $"{f.ToString("N2", CultureInfo.InvariantCulture)} {t.Currency}"
+                        : "no price",
+                    Note: t.MissingPriceCount == 0
+                        ? string.Empty
+                        : $"{t.MissingPriceCount} unpriced"))
+                .ToList();
             Years = summary.RewardsByYear
                 .Select(y => new YearlyRewardRow(
                     y.Year,

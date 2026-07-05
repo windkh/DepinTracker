@@ -9,7 +9,9 @@
     <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
+            <RowDefinition Height="*" MinHeight="120" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="220" MinHeight="80" />
         </Grid.RowDefinitions>
 
         <DockPanel Grid.Row="0">
@@ -21,27 +23,41 @@
             <DataGrid ItemsSource="{Binding Rows}"
                       AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
                       GridLinesVisibility="Horizontal" CanUserSortColumns="True">
+                <!-- Spam rows get a red tint + warning tooltip so they stand out while scrolling. -->
+                <DataGrid.RowStyle>
+                    <Style TargetType="DataGridRow">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsSpam}" Value="True">
+                                <Setter Property="Background" Value="#FDE7E9" />
+                                <Setter Property="ToolTip"
+                                        Value="Likely spam / scam airdrop — worthless token whose symbol encodes a URL or lure. Do not interact with it." />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </DataGrid.RowStyle>
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="Date (UTC)" Binding="{Binding TimestampUtc, StringFormat=yyyy-MM-dd HH:mm}" Width="140" SortMemberPath="TimestampUtc" />
-                    <DataGridTextColumn Header="Wallet" Binding="{Binding WalletLabel}" Width="160" />
-                    <DataGridTextColumn Header="Chain" Binding="{Binding Chain}" Width="90" />
+                    <DataGridTextColumn Header="" Binding="{Binding SpamFlag}" Width="30"
+                                        SortMemberPath="IsSpam" />
+                    <DataGridTextColumn Header="Date (UTC)" Binding="{Binding TimestampUtc, StringFormat=yyyy-MM-dd HH:mm}" Width="130" SortMemberPath="TimestampUtc" />
+                    <DataGridTextColumn Header="Wallet" Binding="{Binding WalletLabel}" Width="150" />
+                    <DataGridTextColumn Header="Chain" Binding="{Binding Chain}" Width="80" />
                     <DataGridTextColumn Header="Token" Binding="{Binding TokenSymbol}" Width="80" />
-                    <DataGridTextColumn Header="Amount" Binding="{Binding Amount}" Width="120" />
-                    <DataGridTextColumn Header="Kind" Binding="{Binding Kind}" Width="90" />
-                    <DataGridTextColumn Header="From" Binding="{Binding FromAddress}" Width="160" />
-                    <DataGridTextColumn Binding="{Binding UnitPrice}" Width="120">
+                    <DataGridTextColumn Header="Amount" Binding="{Binding Amount}" Width="110" />
+                    <DataGridTextColumn Header="Kind" Binding="{Binding Kind}" Width="80" />
+                    <DataGridTextColumn Header="From" Binding="{Binding FromAddress}" Width="150" />
+                    <DataGridTextColumn Binding="{Binding UnitPrice}" Width="110">
                         <DataGridTextColumn.Header>
                             <TextBlock Text="Unit price" ToolTip="Provider-resolved price per token on the reward's date, in the configured price currency (default USD)." />
                         </DataGridTextColumn.Header>
                     </DataGridTextColumn>
-                    <DataGridTextColumn Binding="{Binding FxRate}" Width="100">
+                    <DataGridTextColumn Binding="{Binding FxRate}" Width="90">
                         <DataGridTextColumn.Header>
                             <TextBlock>
                                 <Run Text="FX (USD→" /><Run Text="{Binding DataContext.ReportingCurrency, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=OneWay}" /><Run Text=")" />
                             </TextBlock>
                         </DataGridTextColumn.Header>
                     </DataGridTextColumn>
-                    <DataGridTemplateColumn Width="130">
+                    <DataGridTemplateColumn Width="120">
                         <DataGridTemplateColumn.Header>
                             <TextBlock>
                                 <Run Text="Fiat value (" /><Run Text="{Binding DataContext.ReportingCurrency, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=OneWay}" /><Run Text=")" />
@@ -55,9 +71,57 @@
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
                     <DataGridTextColumn Header="Tx hash" Binding="{Binding TxHash}" Width="*" />
-                    <DataGridTextColumn Header="Provider" Binding="{Binding Provider}" Width="100" />
+                    <DataGridTextColumn Header="Provider" Binding="{Binding Provider}" Width="90" />
                 </DataGrid.Columns>
             </DataGrid>
+        </Border>
+
+        <!-- Draggable divider to resize the transactions grid vs. the source summary. -->
+        <GridSplitter Grid.Row="2" Height="6" HorizontalAlignment="Stretch" VerticalAlignment="Center"
+                      ResizeDirection="Rows" ResizeBehavior="PreviousAndNext"
+                      Background="#D8DCE1" ShowsPreview="True"
+                      Cursor="SizeNS" />
+
+        <!-- Per-source-address summary: count + cumulated value, spam flag, copy-to-filter,
+             and a checkbox that filters the grid above to the selected sources. -->
+        <Border Grid.Row="3" Style="{StaticResource Card}">
+            <DockPanel>
+                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                        <Button Content="Check all" Command="{Binding CheckAllSourcesCommand}" Padding="8,2" Margin="0" />
+                        <Button Content="Uncheck spam" Command="{Binding UncheckSpamSourcesCommand}" Padding="8,2" Margin="6,0,0,0" />
+                    </StackPanel>
+                    <TextBlock VerticalAlignment="Center" Style="{StaticResource Caption}"
+                               Text="Source addresses — tick to show in the grid above; Copy pastes into the project's allowed-sources filter." />
+                </DockPanel>
+                <DataGrid ItemsSource="{Binding Sources}"
+                          AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
+                          GridLinesVisibility="Horizontal" CanUserSortColumns="True">
+                    <DataGrid.Columns>
+                        <DataGridTemplateColumn Header="Show" Width="45">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                              HorizontalAlignment="Center" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="" Binding="{Binding SpamFlag}" Width="60" SortMemberPath="IsSpam" />
+                        <DataGridTextColumn Header="Source address" Binding="{Binding Address}" Width="*" FontFamily="Consolas" />
+                        <DataGridTextColumn Header="Token" Binding="{Binding Token}" Width="120" />
+                        <DataGridTextColumn Header="Items" Binding="{Binding Count}" Width="70" />
+                        <DataGridTextColumn Header="Cumulated value" Binding="{Binding TotalDisplay}" Width="200" />
+                        <DataGridTemplateColumn Header="" Width="70">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Button Content="Copy" Command="{Binding CopyAddressCommand}"
+                                            Padding="8,1" Margin="0" ToolTip="Copy this address to the clipboard" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </DockPanel>
         </Border>
     </Grid>
 </UserControl>

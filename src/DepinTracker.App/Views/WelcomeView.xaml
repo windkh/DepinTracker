@@ -1,0 +1,142 @@
+<UserControl x:Class="DepinTracker.App.Views.WelcomeView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:DepinTracker.App.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance vm:WelcomeViewModel}">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="10" MaxWidth="780" HorizontalAlignment="Left">
+            <TextBlock Text="Welcome to DePIN Tracker" Style="{StaticResource Heading}" />
+            <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,14">
+                Three small steps and you're ready to import. You can change everything later
+                — this just gets you to a working state without hunting through menus.
+            </TextBlock>
+
+            <!-- Step 1: API keys -->
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="Step 1 — API keys" FontWeight="SemiBold" Margin="0,0,0,4" />
+                    <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,8">
+                        Required for on-chain import. Both providers have a genuinely free tier
+                        sufficient for personal tax tracking. You only need the one(s) for the
+                        chain(s) you actually use — leave the other blank.
+                    </TextBlock>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                            <TextBlock Style="{StaticResource Caption}">
+                                <Run Text="Etherscan v2 (EVM chains) — get one at " />
+                                <Hyperlink NavigateUri="https://etherscan.io/apis">etherscan.io/apis</Hyperlink>
+                            </TextBlock>
+                            <TextBox Text="{Binding EtherscanApiKey, UpdateSourceTrigger=PropertyChanged}"
+                                     FontFamily="Consolas" FontSize="12" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Style="{StaticResource Caption}">
+                                <Run Text="Helius (Solana) — get one at " />
+                                <Hyperlink NavigateUri="https://www.helius.dev">helius.dev</Hyperlink>
+                            </TextBlock>
+                            <TextBox Text="{Binding HeliusApiKey, UpdateSourceTrigger=PropertyChanged}"
+                                     FontFamily="Consolas" FontSize="12" />
+                        </StackPanel>
+                    </Grid>
+
+                    <Button Content="Save API keys" Command="{Binding SaveApiKeysCommand}" HorizontalAlignment="Left" Margin="0,8,0,0" />
+                </StackPanel>
+            </Border>
+
+            <!-- Step 2: First project -->
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="Step 2 — Create your first project" FontWeight="SemiBold" Margin="0,0,0,4" />
+                    <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,8">
+                        A project is just a named grouping (e.g. "GEODNET" or "ONOCOY"). The
+                        Dashboard, Transactions, Reports and Import pages all filter to the
+                        currently-active project once you pick one in the nav rail.
+                    </TextBlock>
+
+                    <TextBlock Text="Project name" Style="{StaticResource Caption}" />
+                    <TextBox Text="{Binding NewProjectName, UpdateSourceTrigger=PropertyChanged}"
+                             IsEnabled="{Binding IsProjectReady, Converter={StaticResource InverseBool}}" />
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Create project" Command="{Binding CreateProjectCommand}" />
+                        <TextBlock VerticalAlignment="Center" Margin="12,4,0,0"
+                                   FontStyle="Italic" Foreground="#388E3C"
+                                   Visibility="{Binding IsProjectReady, Converter={StaticResource BoolToVisibility}}"
+                                   Text="✓ Project created." />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Step 3: First wallet (only enabled once a project exists) -->
+            <Border Style="{StaticResource Card}" IsEnabled="{Binding IsProjectReady}">
+                <StackPanel>
+                    <TextBlock Text="Step 3 — Add your first wallet" FontWeight="SemiBold" Margin="0,0,0,4" />
+                    <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,8">
+                        Pick the chain, paste the receiving address. Optional but recommended:
+                        in the source-address allow-list, paste the DePIN reward distributor's
+                        address so unrelated airdrops/scam tokens are rejected at import time.
+                        The "Use GEODNET preset" button fills in the GEODNET distributor on
+                        Polygon — for other DePINs, you'll find the address on the project's
+                        token page (see the README walkthrough for the recipe).
+                    </TextBlock>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                            <TextBlock Text="Chain" Style="{StaticResource Caption}" />
+                            <ComboBox ItemsSource="{Binding AvailableChains}" SelectedItem="{Binding SelectedChain}"
+                                      DisplayMemberPath="Name" Margin="0,2,0,6" />
+                            <TextBlock Text="Label (optional)" Style="{StaticResource Caption}" />
+                            <TextBox Text="{Binding NewWalletLabel, UpdateSourceTrigger=PropertyChanged}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="Wallet address" Style="{StaticResource Caption}" />
+                            <TextBox Text="{Binding NewWalletAddress, UpdateSourceTrigger=PropertyChanged}"
+                                     FontFamily="Consolas" FontSize="12" />
+                        </StackPanel>
+                    </Grid>
+
+                    <TextBlock Style="{StaticResource Caption}" Margin="0,10,0,0">
+                        Allowed source addresses (optional — one per line)
+                    </TextBlock>
+                    <TextBox Text="{Binding AllowedSourceAddresses, UpdateSourceTrigger=PropertyChanged}"
+                             AcceptsReturn="True" MinHeight="56" MaxHeight="120"
+                             TextWrapping="NoWrap" VerticalScrollBarVisibility="Auto"
+                             FontFamily="Consolas" FontSize="12" />
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Use GEODNET preset" Command="{Binding UseGeodnetPresetCommand}" />
+                        <Button Content="Add wallet" Command="{Binding AddWalletCommand}" Margin="8,4,0,0" />
+                        <TextBlock VerticalAlignment="Center" Margin="12,4,0,0"
+                                   FontStyle="Italic" Foreground="#388E3C"
+                                   Visibility="{Binding WalletAdded, Converter={StaticResource BoolToVisibility}}"
+                                   Text="✓ Wallet added." />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Finish -->
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="You're set!" FontWeight="SemiBold" Margin="0,0,0,4" />
+                    <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,8">
+                        Continue to the Dashboard. The Import tab is where you click
+                        "Import all active wallets" to pull rewards on-chain. You can always
+                        come back to the Projects page to add more wallets or projects.
+                    </TextBlock>
+                    <Button Content="Continue to dashboard" Command="{Binding ContinueCommand}"
+                            HorizontalAlignment="Left" FontWeight="SemiBold" Padding="14,6" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

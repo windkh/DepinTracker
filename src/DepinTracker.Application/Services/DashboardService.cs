@@ -54,7 +54,11 @@ public sealed class DashboardService
             rewards = allRewards.Where(r => walletIds.Contains(r.WalletId)).ToList();
         }
 
-        var valuations = await _valuation.ValueManyAsync(rewards, cancellationToken).ConfigureAwait(false);
+        // Only DePIN reward *income* feeds the dashboard's figures — see IncomeClassifier
+        // (shared with the tax report + FIFO). Applied at read time, so editing a project's
+        // allowed-source list updates the dashboard without deleting or re-importing data.
+        var incomeRewards = IncomeClassifier.FilterIncome(rewards, wallets, projects);
+        var valuations = await _valuation.ValueManyAsync(incomeRewards, cancellationToken).ConfigureAwait(false);
 
         var currency = _settings.ReportingCurrency;
         var portfolio = valuations
@@ -64,7 +68,8 @@ public sealed class DashboardService
         var missingPrices = valuations.Count(v => !v.HasPrice);
         var byMonth = _analytics.ComputeRewardsByMonth(valuations);
         var byYear = _analytics.ComputeRewardsByYear(valuations);
-        var tokensByMonth = _analytics.ComputeTokensByMonth(rewards);
+        var tokensByMonth = _analytics.ComputeTokensByMonth(incomeRewards);
+        var tokenBreakdown = _analytics.ComputeTokenBreakdown(valuations, currency);
 
         var recent = await _sessions.GetRecentAsync(1, cancellationToken).ConfigureAwait(false);
         var syncState = recent.Count == 0
@@ -77,7 +82,7 @@ public sealed class DashboardService
 
         return new DashboardSummary(
             PortfolioValue: portfolio,
-            RewardCount: rewards.Count,
+            RewardCount: incomeRewards.Count,
             WalletCount: projectId is null ? wallets.Count : scopedWallets.Count,
             ProjectCount: projectId is null ? projects.Count : 1,
             MissingPriceCount: missingPrices,
@@ -85,6 +90,7 @@ public sealed class DashboardService
             DatabaseHealth: dbHealth,
             RewardsOverTime: byMonth,
             RewardsByYear: byYear,
-            TokensByMonth: tokensByMonth);
+            TokensByMonth: tokensByMonth,
+            TokenBreakdown: tokenBreakdown);
     }
 }

@@ -19,6 +19,7 @@ public sealed class ProjectScope : IProjectScope
 
     public event EventHandler? ActiveProjectChanged;
     public event EventHandler? ProjectListChanged;
+    public event EventHandler? DataChanged;
 
     public async Task InitializeAsync(CancellationToken cancellationToken)
     {
@@ -53,4 +54,6 @@ public sealed class ProjectScope : IProjectScope
     }
 
     public void NotifyProjectListChanged() => ProjectListChanged?.Invoke(this, EventArgs.Empty);
+
+    public void NotifyDataChanged() => DataChanged?.Invoke(this, EventArgs.Empty);
 }

@@ -13,4 +13,10 @@ public enum RewardKind
     Airdrop = 3,
     Fee = 4,
     Transfer = 5,
+
+    /// <summary>
+    /// Unsolicited scam / phishing airdrop (worthless token whose "symbol" encodes a
+    /// URL or marketing lure). Flagged so it can be visually separated and excluded.
+    /// </summary>
+    Spam = 6,
 }

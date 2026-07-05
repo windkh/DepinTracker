@@ -6,6 +6,42 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-07-05
+
+Income accuracy + spam handling + first-run onboarding.
+
+### Added
+- **Onboarding Welcome page** shown on first run (empty database) with a
+  "Continue to dashboard" action; it is not a permanent nav-rail entry.
+- **Spam / scam-airdrop detection.** Shared `SpamHeuristics` flags tokens whose
+  symbol encodes a URL, marketing lure or is otherwise non-ticker-shaped. Marked
+  at import time as `RewardKind.Spam` and highlighted (red row + ⚠) in the
+  Transactions grid; pre-existing rows are flagged on display without re-import.
+- **Per-source-address summary** below the Transactions grid: grouped by
+  (source address, token), showing item count and cumulated value, a spam flag,
+  a Copy-address button (to paste into a project's allowed-source filter), and
+  per-row checkboxes that filter the grid above (plus "Check all" / "Uncheck
+  spam"). Sorted by token by default, with a draggable splitter between the tables.
+- **Dashboard "Holdings by token" breakdown** — quantity, transaction count and
+  priced value per token, so it's clear what makes up the portfolio.
+
+### Changed
+- **Income is now computed consistently** via a shared `IncomeClassifier`:
+  spam / internal transfers / fees never count as income, and when a project has
+  an allowed-source list only transfers from those reward distributors count —
+  transfers from other senders (e.g. swap/sale proceeds) are disposals, not
+  income. Applied at read time by the Dashboard, the tax report **and** the FIFO
+  cost-basis lots, so a swap no longer inflates the portfolio and editing the
+  allowed-source list updates figures without deleting or re-importing data.
+- Dashboard and Transactions now refresh immediately when data or the
+  allowed-source filter changes (new `IProjectScope.DataChanged` signal).
+- Tax report methodology section documents the income rule (swaps ≠ income).
+
+### Fixed
+- Dashboard not updating after saving a project's source-address filter.
+- Suppressed the benign transitive `NU1701` (SkiaSharp.Views.WPF on net9) so the
+  build is warning-free, scoped to the App project.
+
 ## [0.2.0] - 2026-06-30
 
 First public milestone. Foundation + reward-tracking vertical slice + tax

@@ -24,6 +24,12 @@ public interface IProjectScope
     /// </summary>
     event EventHandler? ProjectListChanged;
 
+    /// <summary>
+    /// Raised when imported data or the income filter (allowed-source list) changes, so
+    /// income-dependent views (Dashboard, Transactions) can reload without a manual refresh.
+    /// </summary>
+    event EventHandler? DataChanged;
+
     /// <summary>Switch the active project. Persists the choice and raises the event.</summary>
     Task SetActiveAsync(Guid? projectId, string? name, CancellationToken cancellationToken);
 
@@ -32,4 +38,7 @@ public interface IProjectScope
 
     /// <summary>Tell listeners that the project list has changed. Call from CRUD code paths.</summary>
     void NotifyProjectListChanged();
+
+    /// <summary>Tell income-dependent views that data or the income filter changed (import, clear, filter save).</summary>
+    void NotifyDataChanged();
 }

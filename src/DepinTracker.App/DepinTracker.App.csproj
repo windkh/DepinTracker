@@ -8,6 +8,10 @@
     <UseWPF>true</UseWPF>
     <RootNamespace>DepinTracker.App</RootNamespace>
     <AssemblyName>DepinTracker.App</AssemblyName>
+    <!-- ScottPlot.WPF pulls in SkiaSharp.Views.WPF, which only ships .NET Framework TFMs.
+         It is binary-compatible with WPF on .NET 9; suppress the benign restore warning.
+         Scoped to this project so genuine framework-mismatch warnings elsewhere still show. -->
+    <NoWarn>$(NoWarn);NU1701</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

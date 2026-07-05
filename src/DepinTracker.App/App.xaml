@@ -2,11 +2,16 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:DepinTracker.App.ViewModels"
-             xmlns:views="clr-namespace:DepinTracker.App.Views">
+             xmlns:views="clr-namespace:DepinTracker.App.Views"
+             xmlns:mvvm="clr-namespace:DepinTracker.App.Mvvm">
     <Application.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+        <mvvm:InverseBooleanConverter x:Key="InverseBool" />
 
         <!-- Map each page view model to its view; the shell ContentControl uses these. -->
+        <DataTemplate DataType="{x:Type vm:WelcomeViewModel}">
+            <views:WelcomeView />
+        </DataTemplate>
         <DataTemplate DataType="{x:Type vm:DashboardViewModel}">
             <views:DashboardView />
         </DataTemplate>

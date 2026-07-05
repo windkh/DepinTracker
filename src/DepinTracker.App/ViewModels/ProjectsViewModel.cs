@@ -202,6 +202,7 @@ public sealed class ProjectsViewModel : ViewModelBase
     {
         var project = SelectedProject!;
         var deleted = await _import.ClearForProjectAsync(project.Id, CancellationToken.None).ConfigureAwait(true);
+        _scope.NotifyDataChanged();
         StatusMessage = deleted == 0
             ? $"No imported rewards to clear for '{project.Name}'."
             : $"Cleared {deleted} reward(s) for '{project.Name}'. Wallets kept.";
@@ -218,8 +219,11 @@ public sealed class ProjectsViewModel : ViewModelBase
 
         project.RewardSourceAddresses = addresses;
         await _projects.UpdateAsync(project, CancellationToken.None).ConfigureAwait(true);
+        // The allowed-source list is also an income filter applied at display time, so the
+        // dashboard/transactions must re-evaluate what counts as income right away.
+        _scope.NotifyDataChanged();
         StatusMessage = addresses.Count == 0
-            ? "Source-address filter cleared (project will import everything)."
+            ? "Source-address filter cleared (project counts every incoming transfer as income)."
             : $"Saved {addresses.Count} allowed source address(es) for '{project.Name}'.";
     }
 

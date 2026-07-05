@@ -60,6 +60,34 @@ public sealed class AnalyticsService
     }
 
     /// <summary>
+    /// Summarises holdings per token symbol: total quantity, transaction count, total
+    /// priced fiat value (null if none priced) and how many transactions are unpriced.
+    /// Ordered by fiat value so the tokens that actually move the portfolio come first;
+    /// worthless spam-airdrop tokens (no price) sink to the bottom.
+    /// </summary>
+    public IReadOnlyList<TokenBreakdownRow> ComputeTokenBreakdown(
+        IEnumerable<RewardValuation> valuations, string currency)
+    {
+        return valuations
+            .GroupBy(v => v.Reward.TokenSymbol, StringComparer.OrdinalIgnoreCase)
+            .Select(g =>
+            {
+                var priced = g.Where(v => v.HasPrice).ToList();
+                decimal? fiat = priced.Count > 0 ? priced.Sum(v => v.Value!.Value.Amount) : null;
+                return new TokenBreakdownRow(
+                    TokenSymbol: g.Key,
+                    Quantity: g.Sum(v => v.Reward.Amount),
+                    Count: g.Count(),
+                    FiatValue: fiat,
+                    MissingPriceCount: g.Count(v => !v.HasPrice),
+                    Currency: currency);
+            })
+            .OrderByDescending(r => r.FiatValue ?? -1m)
+            .ThenByDescending(r => r.Quantity)
+            .ToList();
+    }
+
+    /// <summary>
     /// Buckets rewards by (month, token symbol), summing the native token quantity.
     /// No price/FX involved — this is "how many tokens did I receive in this month?",
     /// kept separate per symbol because mixing units (GEOD + ETH) makes no sense.

@@ -71,6 +71,23 @@
                 <TabItem Header="Tokens per month">
                     <sp:WpfPlot x:Name="TokensPlot" Margin="0,6,0,0" />
                 </TabItem>
+                <TabItem Header="Holdings by token">
+                    <DockPanel Margin="0,6,0,0">
+                        <TextBlock DockPanel.Dock="Top" Style="{StaticResource Caption}" Margin="0,0,0,6"
+                                   Text="How many of each token you received (current project scope, all-time) and its priced value. Tokens with no price are worthless/unlisted (often spam airdrops)." />
+                        <DataGrid ItemsSource="{Binding TokenBreakdown}"
+                                  AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
+                                  GridLinesVisibility="Horizontal" SelectionMode="Single">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Token" Binding="{Binding Token}" Width="*" />
+                                <DataGridTextColumn Header="Quantity" Binding="{Binding Quantity}" Width="140" />
+                                <DataGridTextColumn Header="Txns" Binding="{Binding Count}" Width="60" />
+                                <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="120" />
+                                <DataGridTextColumn Header="Note" Binding="{Binding Note}" Width="90" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </DockPanel>
+                </TabItem>
             </TabControl>
         </Border>
 

@@ -63,23 +63,27 @@ public sealed class TaxReportGenerator
         var currency = _settings.ReportingCurrency;
         var allRewards = await _rewards.GetAllAsync(cancellationToken).ConfigureAwait(false);
         var allDisposals = await _dispositions.GetAllAsync(cancellationToken).ConfigureAwait(false);
+        var allWallets = await _wallets.GetAllAsync(cancellationToken).ConfigureAwait(false);
+        var allProjects = await _projects.GetAllAsync(cancellationToken).ConfigureAwait(false);
 
         HashSet<Guid>? walletIdSet = null;
         var projectLabel = "Alle Projekte";
         if (projectId is { } pid)
         {
-            var project = await _projects.GetAsync(pid, cancellationToken).ConfigureAwait(false);
-            projectLabel = project?.Name ?? "Unbekannt";
-            var wallets = await _wallets.GetByProjectAsync(pid, cancellationToken).ConfigureAwait(false);
-            walletIdSet = wallets.Select(w => w.Id).ToHashSet();
+            projectLabel = allProjects.FirstOrDefault(p => p.Id == pid)?.Name ?? "Unbekannt";
+            walletIdSet = allWallets.Where(w => w.ProjectId == pid).Select(w => w.Id).ToHashSet();
         }
 
-        // FIFO needs the full reward history (across all years) so older lots can
-        // back fresher disposals; the year/project filter only constrains what
-        // appears in the report tables, not what cost-basis the matcher sees.
-        var rewardsInScope = walletIdSet is null
+        var scopedRewards = walletIdSet is null
             ? allRewards
             : allRewards.Where(r => walletIdSet.Contains(r.WalletId)).ToList();
+
+        // Same income definition as the dashboard: exclude spam/transfers/fees, and — when a
+        // project has an allowed-source list — count only reward-distributor transfers as
+        // income (swap/sale proceeds are disposals, not income). This filtered set feeds both
+        // the report's income tables and the FIFO cost-basis lots, keeping them consistent.
+        var rewardsInScope = IncomeClassifier.FilterIncome(scopedRewards, allWallets, allProjects);
+
         var disposalsInScope = walletIdSet is null
             ? allDisposals
             : allDisposals.Where(d => d.WalletId is not { } w || walletIdSet.Contains(w)).ToList();
@@ -247,8 +251,8 @@ public sealed class TaxReportGenerator
                 },
                 new[]
                 {
-                    "Filterung der Quelltransaktionen",
-                    "Pro Projekt kann eine Allow-Liste von Absender-Adressen konfiguriert werden. Nur Transfers von diesen Adressen zählen als Rewards. Bei leerer Liste werden alle eingehenden Token-Transfers berücksichtigt.",
+                    "Einordnung als Einkommen",
+                    "Als steuerbares Reward-Einkommen zählen nur echte Auszahlungen. Spam-Airdrops, interne Transfers und Gebühren werden nie als Einkommen gewertet. Ist pro Projekt eine Allow-Liste von Absender-Adressen konfiguriert, zählen ausschließlich Transfers dieser Reward-Verteiler als Einkommen; Transfers anderer Absender (z. B. Swap- oder Verkaufserlöse, die zurück in die Wallet fließen) sind Veräußerungen bzw. sonstige Bewegungen und werden hier nicht als Einkommen erfasst. Bei leerer Liste zählt jeder eingehende Token-Transfer als Einkommen.",
                 },
                 new[]
                 {

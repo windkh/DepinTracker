@@ -246,6 +246,7 @@ public sealed class RewardImportService
 
             var rewards = new List<RewardTransaction>(fetch.Rewards.Count);
             var rejectedBySource = 0;
+            var spamCount = 0;
             foreach (var item in fetch.Rewards)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -261,6 +262,16 @@ public sealed class RewardImportService
                 }
 
                 var kind = await ClassifyAsync(wallet.BlockchainKey, item, cancellationToken).ConfigureAwait(false);
+
+                // Mark obvious scam-airdrop tokens so they are visually separable and can be
+                // excluded downstream. Only override "plain" classifications, never a specific
+                // one a classifier deliberately assigned.
+                if ((kind == RewardKind.Reward || kind == RewardKind.Unknown) &&
+                    SpamHeuristics.IsLikelySpam(item.TokenSymbol))
+                {
+                    kind = RewardKind.Spam;
+                    spamCount++;
+                }
                 rewards.Add(new RewardTransaction
                 {
                     WalletId = walletId,
@@ -285,6 +296,13 @@ public sealed class RewardImportService
                 _logger.LogInformation(
                     "Import filter rejected {Count} transfer(s) not from an allowed source address for project {Project}",
                     rejectedBySource, project?.Name ?? wallet.ProjectId.ToString());
+            }
+
+            if (spamCount > 0)
+            {
+                _logger.LogInformation(
+                    "Flagged {Count} imported transfer(s) as likely spam/scam airdrops for project {Project}",
+                    spamCount, project?.Name ?? wallet.ProjectId.ToString());
             }
 
             var inserted = await _rewards

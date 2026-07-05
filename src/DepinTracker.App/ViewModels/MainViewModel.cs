@@ -15,6 +15,8 @@ public sealed class MainViewModel : ObservableObject
 {
     private readonly ProjectService _projects;
     private readonly IProjectScope _scope;
+    private readonly DashboardViewModel _dashboard;
+    private readonly WelcomeViewModel _welcome;
     private ViewModelBase? _selectedPage;
     private ProjectScopeChoice? _selectedScope;
     private bool _scopeUpdateInFlight;
@@ -22,6 +24,7 @@ public sealed class MainViewModel : ObservableObject
     public MainViewModel(
         ProjectService projects,
         IProjectScope scope,
+        WelcomeViewModel welcome,
         DashboardViewModel dashboard,
         ProjectsViewModel projectsVm,
         ImportViewModel import,
@@ -31,15 +34,20 @@ public sealed class MainViewModel : ObservableObject
     {
         _projects = projects;
         _scope = scope;
+        _dashboard = dashboard;
+        _welcome = welcome;
+        // Welcome is intentionally NOT in Pages — it's an onboarding screen, not a
+        // permanent nav-rail entry. We swap SelectedPage to it on empty start and
+        // let the "Continue to dashboard" button switch back to the regular pages.
         Pages = new ObservableCollection<ViewModelBase> { dashboard, projectsVm, import, transactions, reports, settings };
-        SelectedPage = dashboard;
+        _welcome.CompletionRequested += (_, _) => SelectedPage = _dashboard;
 
         AvailableScopes.Add(ProjectScopeChoice.All);
         _scope.ProjectListChanged += async (_, _) => await RefreshScopesAsync().ConfigureAwait(false);
 
-        // Initial load — fire and forget; the picker shows "Alle Projekte" until the
-        // real list arrives. This avoids blocking the shell constructor on a DB read.
-        _ = RefreshScopesAsync();
+        // Initial load — fire and forget. RefreshScopesAsync also decides whether to
+        // show the Welcome page (when the projects list is empty) or the Dashboard.
+        _ = RefreshScopesAsync(selectInitialPage: true);
     }
 
     public ObservableCollection<ViewModelBase> Pages { get; }
@@ -73,11 +81,18 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
-    private async Task RefreshScopesAsync()
+    private async Task RefreshScopesAsync(bool selectInitialPage = false)
     {
         try
         {
             var projects = await _projects.GetAllAsync(CancellationToken.None).ConfigureAwait(true);
+
+            // First-run UX: when the DB is empty, land on the Welcome page instead of
+            // the (empty) Dashboard so the user knows exactly what to do next.
+            if (selectInitialPage)
+            {
+                SelectedPage = projects.Count == 0 ? _welcome : _dashboard;
+            }
 
             var rebuilt = new List<ProjectScopeChoice> { ProjectScopeChoice.All };
             rebuilt.AddRange(projects
