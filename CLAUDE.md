@@ -5,14 +5,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Build, test, run
 
 ```sh
-dotnet build DepinTracker.sln                          # build everything (Release: --configuration Release)
+dotnet build DepinTracker.slnx                          # build everything (Release: --configuration Release)
 dotnet test                                            # run the whole xUnit suite
 dotnet test --filter "FullyQualifiedName~ValuationServiceTests"   # one class
 dotnet test --filter "FullyQualifiedName~ValuationServiceTests.Values_using_cached_price"   # one test
-dotnet run --project src/DepinTracker.App             # launch the WPF app (Windows only — net9.0-windows)
+dotnet run --project src/DepinTracker.App             # launch the WPF app (Windows only — net10.0-windows)
 ```
 
-The .NET 9 SDK version is pinned by `global.json`. VS Code tasks `build` / `test` / `run-app` and the *Launch DePIN Tracker (WPF)* configuration are pre-wired. CI builds and tests on `windows-latest` only — WPF can't build on Linux/macOS runners.
+The .NET 10 SDK version is pinned by `global.json`. VS Code tasks `build` / `test` / `run-app` and the *Launch DePIN Tracker (WPF)* configuration are pre-wired. CI builds and tests on `windows-latest` only — WPF can't build on Linux/macOS runners.
 
 ## Architecture
 
@@ -21,7 +21,7 @@ Clean Architecture; dependencies point inward. Crossing a layer means going thro
 - **`DepinTracker.Domain`** — pure entities/value objects/enums. No external dependencies. `Money` and `TokenAmount` are `decimal`-backed (never float).
 - **`DepinTracker.Plugins.Abstractions`** — the six extension interfaces (`IBlockchainExplorer`, `IPriceProvider`, `IExchangeRateProvider`, `IRewardClassifier`, `IAnalyticsProvider`, `IReportExporter`) + `IPlugin` / `PluginManifest`. Every method is `async` and takes a `CancellationToken`.
 - **`DepinTracker.Application`** — orchestration only: ports (`IProjectRepository`, `IRewardRepository`, `IPriceCache`, …), services (`PriceEngine`, `ExchangeRateEngine`, `ValuationService`, `RewardImportService`, `DashboardService`, …), DTOs. Depends only on Domain + Abstractions.
-- **`DepinTracker.Infrastructure`** — adapters: Dapper repositories, `MigrationRunner`, HTTP providers (CoinGecko / Frankfurter / Blockscout), `PluginLoader`, `BackupService`, file logger. Targets `net9.0` (no WPF coupling).
+- **`DepinTracker.Infrastructure`** — adapters: Dapper repositories, `MigrationRunner`, HTTP providers (CoinGecko / Frankfurter / Blockscout), `PluginLoader`, `BackupService`, file logger. Targets `net10.0` (no WPF coupling).
 - **`DepinTracker.App`** — composition root. `App.xaml.cs` builds the generic host (config → logging → DI), calls `LoadPlugins`, runs `MigrationRunner.MigrateAll()`, then shows the MVVM shell. MVVM primitives are hand-rolled — there is no MVVM toolkit dependency.
 
 ## Persistence: three physical SQLite files

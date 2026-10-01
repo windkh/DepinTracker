@@ -2,7 +2,7 @@
 
 A production-grade, **offline-first, portable Windows desktop application** for tracking
 DePIN rewards, managing wallets, producing analytics, and generating reproducible tax
-reports. Built on .NET 9 / WPF / MVVM with Clean Architecture and a plugin system.
+reports. Built on .NET 10 / WPF / MVVM with Clean Architecture and a plugin system.
 
 > Status: **foundation + one working vertical slice**. The architecture, persistence,
 > plugin system, providers, and an end-to-end flow (create project → add wallet →
@@ -20,13 +20,13 @@ reports. Built on .NET 9 / WPF / MVVM with Clean Architecture and a plugin syste
 ## Requirements
 
 - Windows 10/11
-- [.NET 9 SDK](https://dotnet.microsoft.com/download) (pinned via `global.json`)
-- Opens in **Visual Studio 2026** (open `DepinTracker.sln`) or **VS Code** (C# Dev Kit)
+- [.NET 10 SDK](https://dotnet.microsoft.com/download) (pinned via `global.json`)
+- Opens in **Visual Studio 2026** (open `DepinTracker.slnx`) or **VS Code** (C# Dev Kit)
 
 ## Build & run
 
 ```sh
-dotnet build DepinTracker.sln                 # build everything
+dotnet build DepinTracker.slnx                 # build everything
 dotnet test                                   # run the test suite
 dotnet run --project src/DepinTracker.App     # launch the app
 ```

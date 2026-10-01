@@ -12,6 +12,7 @@
 *.cs        text diff=csharp
 *.csproj    text
 *.sln       text
+*.slnx      text
 *.props     text
 *.targets   text
 *.xaml      text

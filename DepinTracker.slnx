@@ -1,0 +1,16 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/src/">
+    <Project Path="samples/DepinTracker.Plugins.SampleCsvPrice/DepinTracker.Plugins.SampleCsvPrice.csproj" />
+    <Project Path="src/DepinTracker.App/DepinTracker.App.csproj" />
+    <Project Path="src/DepinTracker.Application/DepinTracker.Application.csproj" />
+    <Project Path="src/DepinTracker.Domain/DepinTracker.Domain.csproj" />
+    <Project Path="src/DepinTracker.Infrastructure/DepinTracker.Infrastructure.csproj" />
+    <Project Path="src/DepinTracker.Plugins.Abstractions/DepinTracker.Plugins.Abstractions.csproj" />
+    <Project Path="tests/DepinTracker.Tests/DepinTracker.Tests.csproj" />
+  </Folder>
+</Solution>

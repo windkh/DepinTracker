@@ -112,7 +112,7 @@ config/ data/ cache/ logs/ exports/ plugins/ backups/
 
 ### Architecture
 
--   .NET 9
+-   .NET 10
 -   WPF
 -   MVVM
 -   Clean Architecture

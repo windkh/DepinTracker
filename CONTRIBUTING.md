@@ -6,12 +6,12 @@ conventions, and what we expect in a pull request.
 ## Getting started
 
 ```sh
-dotnet build DepinTracker.sln
+dotnet build DepinTracker.slnx
 dotnet test
 dotnet run --project src/DepinTracker.App
 ```
 
-Requires the .NET 9 SDK (pinned by `global.json`). The solution opens in Visual Studio
+Requires the .NET 10 SDK (pinned by `global.json`). The solution opens in Visual Studio
 2026 or VS Code (C# Dev Kit).
 
 ## Conventions

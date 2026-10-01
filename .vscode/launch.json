@@ -6,9 +6,9 @@
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "build",
-      "program": "${workspaceFolder}/src/DepinTracker.App/bin/Debug/net9.0-windows/DepinTracker.App.dll",
+      "program": "${workspaceFolder}/src/DepinTracker.App/bin/Debug/net10.0-windows/DepinTracker.App.dll",
       "args": [],
-      "cwd": "${workspaceFolder}/src/DepinTracker.App/bin/Debug/net9.0-windows",
+      "cwd": "${workspaceFolder}/src/DepinTracker.App/bin/Debug/net10.0-windows",
       "console": "internalConsole",
       "stopAtEntry": false
     }

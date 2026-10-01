@@ -2,14 +2,14 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net9.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <RootNamespace>DepinTracker.App</RootNamespace>
     <AssemblyName>DepinTracker.App</AssemblyName>
     <!-- ScottPlot.WPF pulls in SkiaSharp.Views.WPF, which only ships .NET Framework TFMs.
-         It is binary-compatible with WPF on .NET 9; suppress the benign restore warning.
+         It is binary-compatible with WPF on .NET 10; suppress the benign restore warning.
          Scoped to this project so genuine framework-mismatch warnings elsewhere still show. -->
     <NoWarn>$(NoWarn);NU1701</NoWarn>
   </PropertyGroup>
@@ -39,7 +39,7 @@
   <!-- Copy the built sample plugin (and its offline price CSV) into the portable plugins/ folder. -->
   <Target Name="CopySamplePlugin" AfterTargets="Build">
     <ItemGroup>
-      <_SamplePluginOutput Include="..\..\samples\DepinTracker.Plugins.SampleCsvPrice\bin\$(Configuration)\net9.0\DepinTracker.Plugins.SampleCsvPrice.dll" />
+      <_SamplePluginOutput Include="..\..\samples\DepinTracker.Plugins.SampleCsvPrice\bin\$(Configuration)\net10.0\DepinTracker.Plugins.SampleCsvPrice.dll" />
       <_SamplePluginCsv Include="..\..\samples\DepinTracker.Plugins.SampleCsvPrice\prices.csv" />
     </ItemGroup>
     <Copy SourceFiles="@(_SamplePluginOutput)" DestinationFolder="$(OutDir)plugins"
