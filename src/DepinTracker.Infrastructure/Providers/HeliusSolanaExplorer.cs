@@ -70,6 +70,11 @@ public sealed class HeliusSolanaExplorer : IBlockchainExplorer
             throw new InvalidOperationException($"Helius is not configured for chain '{blockchainKey}'.");
         }
 
+        if (WalletAddressFormat.Validate(ChainType.Solana, address) is { } addressError)
+        {
+            throw new InvalidOperationException(addressError);
+        }
+
         var apiKey = await _userSettings.GetAsync(ApiKeySettingName, cancellationToken).ConfigureAwait(false);
         if (string.IsNullOrWhiteSpace(apiKey))
         {
@@ -110,7 +115,8 @@ public sealed class HeliusSolanaExplorer : IBlockchainExplorer
             if (response.StatusCode == HttpStatusCode.TooManyRequests)
             {
                 _logger.LogWarning("Helius rate-limited on chain {Chain} page {Page}", blockchainKey, page);
-                break;
+                throw new InvalidOperationException(
+                    "Helius rate-limited the request (HTTP 429). Wait a minute and retry the import.");
             }
 
             if (!response.IsSuccessStatusCode)
@@ -118,7 +124,8 @@ public sealed class HeliusSolanaExplorer : IBlockchainExplorer
                 var errBody = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
                 _logger.LogWarning("Helius returned {Status} on chain {Chain} page {Page}: {Body}",
                     response.StatusCode, blockchainKey, page, errBody);
-                break;
+                throw new InvalidOperationException(
+                    $"Helius returned HTTP {(int)response.StatusCode} ({response.ReasonPhrase}) for {blockchainKey} page {page}.");
             }
 
             var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);

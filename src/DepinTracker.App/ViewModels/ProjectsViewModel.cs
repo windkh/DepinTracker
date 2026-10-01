@@ -8,6 +8,7 @@ using DepinTracker.Application.Abstractions.Persistence;
 using DepinTracker.Application.Services;
 using DepinTracker.Domain.Entities;
 using DepinTracker.Domain.Enums;
+using DepinTracker.Domain.ValueObjects;
 
 /// <summary>
 /// Projects page: create projects, add wallets to the selected project (choosing a
@@ -244,8 +245,14 @@ public sealed class ProjectsViewModel : ViewModelBase
 
     private async Task AddWalletAsync()
     {
+        if (WalletAddressFormat.Validate(SelectedChain!.ChainType, NewWalletAddress) is { } addressError)
+        {
+            StatusMessage = addressError;
+            return;
+        }
+
         var wallet = await _wallets.CreateAsync(
-            SelectedProject!.Id, SelectedChain!.Key, NewWalletAddress,
+            SelectedProject!.Id, SelectedChain.Key, NewWalletAddress.Trim(),
             string.IsNullOrWhiteSpace(NewWalletLabel) ? null : NewWalletLabel,
             CancellationToken.None).ConfigureAwait(true);
         NewWalletAddress = string.Empty;
@@ -264,6 +271,13 @@ public sealed class ProjectsViewModel : ViewModelBase
     private async Task SaveWalletAsync()
     {
         var wallet = SelectedWallet!;
+        if (_chains.TryGet(wallet.BlockchainKey, out var chain) &&
+            WalletAddressFormat.Validate(chain.ChainType, EditWalletAddress) is { } addressError)
+        {
+            StatusMessage = addressError;
+            return;
+        }
+
         wallet.Address = EditWalletAddress.Trim();
         wallet.Label = string.IsNullOrWhiteSpace(EditWalletLabel) ? null : EditWalletLabel.Trim();
         wallet.Notes = string.IsNullOrWhiteSpace(EditWalletNotes) ? null : EditWalletNotes;

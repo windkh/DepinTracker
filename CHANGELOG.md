@@ -12,6 +12,13 @@ All notable changes to this project are documented here. The format is based on
 - Migrated the solution to the Visual Studio 2026 XML format: `DepinTracker.sln` →
   `DepinTracker.slnx`. VS Code tasks, CI and docs reference the new file.
 
+### Fixed
+- On-chain import no longer "succeeds" with 0 rows when the explorer rejects the request.
+  Etherscan `NOTOK` responses (e.g. `Invalid address format`, bad API key, rate limit) and
+  HTTP errors from Etherscan or Helius now fail the import and show the provider's reason.
+- Wallet addresses are checked against the chain family when added or edited, and before
+  an import, so a Solana address saved on an EVM chain (or vice versa) is reported clearly.
+
 ### Security
 - Bumped `Microsoft.Data.Sqlite` to 10.0.12, which pulls `SQLitePCLRaw` 2.1.12 and
   clears the NU1903 advisory GHSA-2m69-gcr7-jv3q on the bundled native SQLite (≤ 2.1.11).

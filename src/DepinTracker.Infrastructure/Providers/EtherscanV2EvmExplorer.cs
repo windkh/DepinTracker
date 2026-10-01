@@ -69,6 +69,11 @@ public sealed class EtherscanV2EvmExplorer : IBlockchainExplorer
             throw new InvalidOperationException($"Etherscan v2 is not configured for chain '{blockchainKey}'.");
         }
 
+        if (WalletAddressFormat.Validate(ChainType.Evm, address) is { } addressError)
+        {
+            throw new InvalidOperationException(addressError);
+        }
+
         var apiKey = await _userSettings.GetAsync(ApiKeySettingName, cancellationToken).ConfigureAwait(false);
         if (string.IsNullOrWhiteSpace(apiKey))
         {
@@ -105,7 +110,8 @@ public sealed class EtherscanV2EvmExplorer : IBlockchainExplorer
             {
                 _logger.LogWarning("Etherscan returned {Status} for chain {Chain} page {Page}",
                     response.StatusCode, blockchainKey, page);
-                break;
+                throw new InvalidOperationException(
+                    $"Etherscan returned HTTP {(int)response.StatusCode} ({response.ReasonPhrase}) for {blockchainKey} page {page}.");
             }
 
             var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
@@ -122,17 +128,23 @@ public sealed class EtherscanV2EvmExplorer : IBlockchainExplorer
                 ? s.GetString() : null;
             if (status == "0")
             {
-                // "No transactions found" or an API error — both signal end-of-data.
+                // "No transactions found" is the normal end-of-data signal. Anything else
+                // ("NOTOK", rate limit, bad key, …) is an API error whose real reason is the
+                // string in "result" — fail the import with it rather than report 0 rows.
                 var msg = doc.RootElement.TryGetProperty("message", out var m) && m.ValueKind == JsonValueKind.String
                     ? m.GetString() : null;
-                if (!string.Equals(msg, "No transactions found", StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(msg, "No transactions found", StringComparison.OrdinalIgnoreCase))
                 {
-                    _logger.LogWarning(
-                        "Etherscan reported '{Message}' for chain {Chain} page {Page}",
-                        msg, blockchainKey, page);
+                    break;
                 }
 
-                break;
+                var detail = doc.RootElement.TryGetProperty("result", out var r) && r.ValueKind == JsonValueKind.String
+                    ? r.GetString() : null;
+                _logger.LogWarning(
+                    "Etherscan reported '{Message}' ({Detail}) for chain {Chain} page {Page}",
+                    msg, detail, blockchainKey, page);
+                throw new InvalidOperationException(
+                    $"Etherscan rejected the request for {blockchainKey}: {detail ?? msg ?? "unknown error"}");
             }
 
             if (!doc.RootElement.TryGetProperty("result", out var result) || result.ValueKind != JsonValueKind.Array)
