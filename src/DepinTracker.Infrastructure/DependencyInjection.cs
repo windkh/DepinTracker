@@ -16,6 +16,7 @@ using DepinTracker.Infrastructure.Time;
 using DepinTracker.Plugins.Abstractions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 
 /// <summary>
@@ -40,7 +41,8 @@ public static class DependencyInjection
         services.AddSingleton(Options.Create(providerOptions));
 
         // Portable paths + clock.
-        services.AddSingleton<IAppPaths>(_ => new AppPaths());
+        // The host registers the configured layout first; this default only fills in when it didn't.
+        services.TryAddSingleton<IAppPaths>(_ => new AppPaths());
         services.AddSingleton<IClock, SystemClock>();
 
         // Persistence.

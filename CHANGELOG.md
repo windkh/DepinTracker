@@ -12,6 +12,13 @@ All notable changes to this project are documented here. The format is based on
 - Migrated the solution to the Visual Studio 2026 XML format: `DepinTracker.sln` →
   `DepinTracker.slnx`. VS Code tasks, CI and docs reference the new file.
 
+### Added
+- The portable data root is configurable through `Paths:DataRoot` in
+  `config/appsettings.json` (default `data/` beside the executable). Debug builds point
+  it at `data/` next to the solution file, so dev data no longer lives inside
+  `bin/<Configuration>/<tfm>/` and isn't lost when the target framework changes.
+  `config/appsettings.json` and `plugins/` stay beside the executable.
+
 ### Fixed
 - On-chain import no longer "succeeds" with 0 rows when the explorer rejects the request.
   Etherscan `NOTOK` responses (e.g. `Invalid address format`, bad API key, rate limit) and

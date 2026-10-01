@@ -31,8 +31,9 @@ dotnet test                                   # run the test suite
 dotnet run --project src/DepinTracker.App     # launch the app
 ```
 
-On first launch the app creates its portable folder layout next to the executable and
-migrates three SQLite databases. From VS Code, use the bundled **build** / **test** /
+On first launch the app creates its portable data folder and migrates three SQLite
+databases. Debug builds keep that folder at `data/` next to the solution file, so dev data
+survives clean builds and target-framework changes; see [Portable folder layout](#portable-folder-layout). From VS Code, use the bundled **build** / **test** /
 **run-app** tasks and the *Launch DePIN Tracker (WPF)* debug configuration.
 
 ## Getting started
@@ -163,17 +164,33 @@ Steuerstatus` per matched lot. Wallet and source addresses are never included.
 
 ## Portable folder layout
 
-Created automatically beside the executable; none of it is committed:
+Beside the executable:
 
 ```
-config/   user configuration + appsettings.json + config.db
-data/     imported.db (authoritative imported financial data)
-cache/    generated.db (rebuildable price/FX caches)
-logs/     daily log files
-exports/  generated reports
-plugins/  drop-in plugin assemblies (discovered at startup)
-backups/  verified backup archives
+config/appsettings.json   app configuration (shipped with the build)
+plugins/                  drop-in plugin assemblies (discovered at startup)
 ```
+
+User data lives under the **data root**, set by `Paths:DataRoot` in
+`config/appsettings.json`. The default is `data`, i.e. `data/` beside the executable;
+relative paths resolve against the executable's folder, absolute paths are used as-is, and
+`%VAR%` environment variables are expanded. It can also be overridden with the
+`DEPIN_Paths__DataRoot` environment variable. Debug builds generate
+`config/appsettings.Debug.json`, which points the data root at `data/` next to the
+solution file (gitignored). The folders are created automatically:
+
+```
+<data root>/
+  config/   config.db (projects, wallets, settings, API keys)
+  data/     imported.db (authoritative imported financial data)
+  cache/    generated.db (rebuildable price/FX caches)
+  logs/     daily log files
+  exports/  generated reports
+  backups/  verified backup archives
+```
+
+To move existing data, close the app and copy the whole data root, including any
+`*.db-wal` / `*.db-shm` files next to the databases.
 
 ## Architecture at a glance
 

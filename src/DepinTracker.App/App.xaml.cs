@@ -30,9 +30,27 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
-        // Portable paths must exist before anything reads/writes config or data.
-        var paths = new AppPaths();
-        paths.EnsureCreated();
+        // appsettings.json ships beside the executable and decides where the portable data
+        // root lives, so read it before resolving paths. Debug builds also emit
+        // appsettings.Debug.json pointing the data root at <solution>/data.
+        var appDirectory = AppContext.BaseDirectory;
+        AppPaths paths;
+        try
+        {
+            var configuration = AddAppSettings(new ConfigurationBuilder(), appDirectory).Build();
+
+            // Portable paths must exist before anything reads/writes config or data.
+            paths = AppPaths.FromSetting(configuration[AppPaths.DataRootSettingName], appDirectory);
+            paths.EnsureCreated();
+        }
+        catch (Exception ex)
+        {
+            // No log folder yet — the dialog is the only place this can surface.
+            MessageBox.Show($"Could not read config\\appsettings.json or create the data folder: {ex.Message}",
+                "DePIN Tracker", MessageBoxButton.OK, MessageBoxImage.Error);
+            Shutdown(-1);
+            return;
+        }
 
         // Last-resort crash logging so startup/UI failures are diagnosable in a portable install.
         var crashLog = Path.Combine(paths.Logs, "crash.log");
@@ -42,7 +60,7 @@ public partial class App : Application
 
         try
         {
-            Bootstrap(paths);
+            Bootstrap(paths, appDirectory);
         }
         catch (Exception ex)
         {
@@ -52,16 +70,17 @@ public partial class App : Application
         }
     }
 
-    private void Bootstrap(AppPaths paths)
-    {
+    private static IConfigurationBuilder AddAppSettings(IConfigurationBuilder config, string appDirectory) =>
+        config
+            .SetBasePath(Path.Combine(appDirectory, "config"))
+            .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
+            .AddJsonFile("appsettings.Debug.json", optional: true, reloadOnChange: false)
+            .AddEnvironmentVariables(prefix: "DEPIN_");
 
+    private void Bootstrap(AppPaths paths, string appDirectory)
+    {
         _host = Host.CreateDefaultBuilder()
-            .ConfigureAppConfiguration((_, config) =>
-            {
-                config.SetBasePath(paths.Config);
-                config.AddJsonFile("appsettings.json", optional: true, reloadOnChange: false);
-                config.AddEnvironmentVariables(prefix: "DEPIN_");
-            })
+            .ConfigureAppConfiguration((_, config) => AddAppSettings(config, appDirectory))
             .ConfigureLogging((_, logging) =>
             {
                 logging.ClearProviders();

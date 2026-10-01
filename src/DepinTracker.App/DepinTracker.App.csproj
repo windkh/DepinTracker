@@ -36,6 +36,23 @@
     </Content>
   </ItemGroup>
 
+  <!--
+    Debug builds point the portable data root at <solution>/data (gitignored) instead of
+    bin/Debug/<tfm>/data, so dev data survives clean builds and target-framework changes.
+    Written as an optional config overlay that Release builds never produce.
+  -->
+  <Target Name="WriteDebugDataRoot" AfterTargets="Build" Condition="'$(Configuration)' == 'Debug'">
+    <PropertyGroup>
+      <_DebugDataRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\data').Replace('\', '/'))</_DebugDataRoot>
+    </PropertyGroup>
+    <WriteLinesToFile File="$(OutDir)config/appsettings.Debug.json"
+                      Lines="{ &quot;Paths&quot;: { &quot;DataRoot&quot;: &quot;$(_DebugDataRoot)&quot; } }"
+                      Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <ItemGroup>
+      <FileWrites Include="$(OutDir)config/appsettings.Debug.json" />
+    </ItemGroup>
+  </Target>
+
   <!-- Copy the built sample plugin (and its offline price CSV) into the portable plugins/ folder. -->
   <Target Name="CopySamplePlugin" AfterTargets="Build">
     <ItemGroup>

@@ -50,9 +50,9 @@ SQLite has no native types for several CLR types, so these are stored as TEXT in
 
 `reward_transactions` has a unique `DedupKey` (`wallet|chain|txhash|symbol|amount`). Imports use `INSERT OR IGNORE` — re-importing is counted as "skipped", never overwritten. Never bypass this to "fix" an import; preserve provenance and add a new import session instead.
 
-## Portable runtime layout (created beside the executable, gitignored)
+## Portable runtime layout (gitignored)
 
-`config/ data/ cache/ logs/ exports/ plugins/ backups/` — there is no installer, no AppData, no registry. `AppPaths.EnsureCreated()` is the first thing `App.OnStartup` calls; `IAppPaths` is the only correct way to resolve these folders.
+User data — `config/ data/ cache/ logs/ exports/ backups/` — lives under the data root from `Paths:DataRoot` in `config/appsettings.json` (default `data`, resolved against the exe folder). Debug builds emit `config/appsettings.Debug.json` (the `WriteDebugDataRoot` target in `DepinTracker.App.csproj`) pointing it at `<solution>/data`. `config/appsettings.json` and `plugins/` always stay beside the executable. There is no installer, no AppData, no registry. `App.OnStartup` reads appsettings first, then builds `AppPaths.FromSetting(...)` and calls `EnsureCreated()`; `IAppPaths` is the only correct way to resolve these folders.
 
 ## Plugins
 

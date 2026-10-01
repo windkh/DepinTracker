@@ -27,8 +27,9 @@ coverage/
 .nuget/
 
 ## Portable runtime data (must never be committed)
-/config/
+# /data/ is the data root Debug builds use (Paths:DataRoot → <solution>/data).
 /data/
+/config/
 /cache/
 /logs/
 /exports/
