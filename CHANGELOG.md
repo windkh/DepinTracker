@@ -11,6 +11,13 @@ All notable changes to this project are documented here. The format is based on
   `global.json` now pins the .NET 10 SDK and CI installs `10.0.x`.
 - Migrated the solution to the Visual Studio 2026 XML format: `DepinTracker.sln` →
   `DepinTracker.slnx`. VS Code tasks, CI and docs reference the new file.
+- Reworked the Projects page around a clear workflow: prominent **+ Add project** /
+  **+ Add wallet** buttons with **Edit** and **Remove** next to them. The project and
+  wallet forms are hidden until you add or edit, and close on **Save** or **Cancel**;
+  while a form is open the lists are locked. Double-click opens an item for editing.
+  The allowed-source-address filter and "Clear imported rewards" moved into the
+  project's edit form. Removing a project or wallet and clearing imported rewards now
+  ask for confirmation. A new wallet defaults to the chain the project already uses.
 
 ### Added
 - The portable data root is configurable through `Paths:DataRoot` in
@@ -25,6 +32,8 @@ All notable changes to this project are documented here. The format is based on
   HTTP errors from Etherscan or Helius now fail the import and show the provider's reason.
 - Wallet addresses are checked against the chain family when added or edited, and before
   an import, so a Solana address saved on an EVM chain (or vice versa) is reported clearly.
+- The version in the window title and assembly info is 0.3.x again; `VersionMinor` in
+  `Directory.Build.props` had been left at 2 after the 0.3.0 release.
 
 ### Security
 - Bumped `Microsoft.Data.Sqlite` to 10.0.12, which pulls `SQLitePCLRaw` 2.1.12 and

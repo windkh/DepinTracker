@@ -57,5 +57,92 @@
             <Setter Property="Padding" Value="4,3" />
             <Setter Property="Margin" Value="0,2,0,6" />
         </Style>
+
+        <!--
+          Flat, coloured action buttons. The stock Button chrome ignores Background on
+          hover, so these carry their own template; Tag holds the hover brush. Variants only change the brushes:
+          Primary = main call to action, Secondary = neutral, Danger = destructive.
+        -->
+        <Style TargetType="Button" x:Key="ActionButton">
+            <Setter Property="Padding" Value="14,7" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Background" Value="White" />
+            <Setter Property="Foreground" Value="#1F2933" />
+            <Setter Property="BorderBrush" Value="#B8C0CC" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Tag">
+                <Setter.Value><SolidColorBrush Color="#EEF1F5" /></Setter.Value>
+            </Setter>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4" Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background"
+                                        Value="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Chrome" Property="Opacity" Value="0.85" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Chrome" Property="BorderThickness" Value="2" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Chrome" Property="Opacity" Value="0.4" />
+                                <Setter Property="Cursor" Value="Arrow" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="Button" x:Key="PrimaryButton" BasedOn="{StaticResource ActionButton}">
+            <Setter Property="Background" Value="#1F6FEB" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderBrush" Value="#1A5FCC" />
+            <Setter Property="Tag">
+                <Setter.Value><SolidColorBrush Color="#1A5FCC" /></Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="Button" x:Key="SecondaryButton" BasedOn="{StaticResource ActionButton}" />
+        <Style TargetType="Button" x:Key="DangerButton" BasedOn="{StaticResource ActionButton}">
+            <Setter Property="Foreground" Value="#B42318" />
+            <Setter Property="BorderBrush" Value="#E5A39D" />
+            <Setter Property="Tag">
+                <Setter.Value><SolidColorBrush Color="#FDECEA" /></Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Inline form shown only while adding/editing a project or wallet. -->
+        <Style TargetType="Border" x:Key="EditorPanel">
+            <Setter Property="Background" Value="#F4F8FF" />
+            <Setter Property="BorderBrush" Value="#1F6FEB" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="12" />
+            <Setter Property="Margin" Value="0,0,0,10" />
+        </Style>
+        <Style TargetType="TextBlock" x:Key="ErrorText">
+            <Setter Property="Foreground" Value="#B42318" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Margin" Value="0,0,0,6" />
+        </Style>
+        <Style TargetType="TextBlock" x:Key="EmptyHint">
+            <Setter Property="Foreground" Value="#666" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="TextAlignment" Value="Center" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="20" />
+        </Style>
     </Application.Resources>
 </Application>

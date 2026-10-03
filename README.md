@@ -52,23 +52,29 @@ two built-in on-chain explorers; you only need the one(s) for the chain(s) you u
 - **Helius API key** — covers Solana. Free tier (≈100k credits/month) at
   <https://www.helius.dev>. Paste, *Save*.
 
-Chains whose key isn't set are hidden from the *Add wallet* dropdown on the Projects
-page, so you can't accidentally create a wallet you can't import from.
+Chains whose key isn't set are hidden from the *Chain* dropdown when adding a wallet on
+the Projects page, so you can't accidentally create a wallet you can't import from.
 
 ### 2. Create a project (Projects page)
 
-A project is just a named grouping (e.g. "GEODNET" or "ONOCOY"). Type a name into
-**New project name** → **Add project**. The project shows up in the **Project scope**
+A project is just a named grouping (e.g. "GEODNET" or "ONOCOY"). Click **+ Add project**,
+type a **Name** and click **Create project**. The project shows up in the **Project scope**
 picker at the top of the nav rail — switching to it focuses the Dashboard,
 Transactions, Reports, and Import pages on this project.
 
 ### 3. Add the reward-receiving wallet
 
-In the Projects page's *Add wallet* panel:
+Select the project, then click **+ Add wallet**:
 
 - Pick **Chain** (e.g. *Polygon* for GEODNET, *Solana* for ONOCOY).
 - Paste your wallet **Address**. Optional **Label** for readability.
-- Click **Add wallet**.
+- Click **Add wallet**. An address that doesn't fit the chain (e.g. a Solana address
+  on Polygon) is rejected with an explanation.
+
+To change or remove a project or wallet later, select it and use **Edit** (or
+double-click it) or **Remove** in the toolbar above the list. The form only appears
+while adding or editing and closes on **Save** / **Cancel**; **Remove** asks for
+confirmation and keeps already-imported rewards.
 
 ### 4. Set the source-address filter (recommended)
 
@@ -76,8 +82,8 @@ DePIN reward contracts pay out from a fixed address. Limiting imports to that
 address keeps unrelated airdrops, scams, and personal transfers out of your tax
 calculation.
 
-In the project's *Allowed source addresses* card, paste one address per line and
-click *Save filter*. Leaving it blank means "accept every incoming token transfer"
+Select the project, click **Edit**, paste one address per line into *Allowed source
+addresses* and click **Save changes** (you can also fill it in when creating the project). Leaving it blank means "accept every incoming token transfer"
 (works, but you'll have to manually sort out noise later).
 
 #### GEODNET (Polygon)

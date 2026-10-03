@@ -95,6 +95,7 @@ public partial class App : Application
                 LoadPlugins(services, paths);
 
                 services.AddSingleton<IProjectScope, ProjectScope>();
+                services.AddSingleton<IDialogService, MessageBoxDialogService>();
                 services.AddSingleton<WelcomeViewModel>();
                 services.AddSingleton<DashboardViewModel>();
                 services.AddSingleton<ProjectsViewModel>();

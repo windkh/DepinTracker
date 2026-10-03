@@ -11,10 +11,12 @@ using DepinTracker.Domain.Enums;
 using DepinTracker.Domain.ValueObjects;
 
 /// <summary>
-/// Projects page: create projects, add wallets to the selected project (choosing a
-/// chain from the runtime plugin registry), toggle wallet activation, and edit or
-/// delete projects and wallets. Imported financial rows are intentionally not touched
-/// by delete here — the rebuild engine (future) is the auditable way to drop them.
+/// Projects page: add, edit and remove projects and the wallets of the selected project.
+/// The page has two states per column: browsing (list + Add/Edit/Remove toolbar) and
+/// editing (an inline form, shown only while adding or editing, that ends with Save or
+/// Cancel). While either form is open the lists and toolbars are locked so the form can
+/// never drift out of sync with the selection. Removing a project or wallet keeps its
+/// imported financial rows — "Clear imported rewards" is the explicit way to drop them.
 /// </summary>
 public sealed class ProjectsViewModel : ViewModelBase
 {
@@ -33,20 +35,29 @@ public sealed class ProjectsViewModel : ViewModelBase
     private readonly IProjectScope _scope;
     private readonly IBlockchainRegistry _chains;
     private readonly IUserSettingsStore _userSettings;
+    private readonly IDialogService _dialogs;
     private Project? _selectedProject;
     private Wallet? _selectedWallet;
-    private string _newProjectName = string.Empty;
-    private string _newWalletAddress = string.Empty;
-    private string _newWalletLabel = string.Empty;
-    private Blockchain? _selectedChain;
-    private string _editWalletAddress = string.Empty;
-    private string _editWalletLabel = string.Empty;
-    private string _editWalletNotes = string.Empty;
+
+    // Project form state.
+    private EditorMode _projectEditor;
+    private string _projectName = string.Empty;
+    private string _projectDescription = string.Empty;
     private string _allowedSourceAddresses = string.Empty;
+    private string _projectEditorError = string.Empty;
+
+    // Wallet form state.
+    private EditorMode _walletEditor;
+    private Blockchain? _selectedChain;
+    private string _walletAddress = string.Empty;
+    private string _walletLabel = string.Empty;
+    private string _walletNotes = string.Empty;
+    private string _walletEditorError = string.Empty;
 
     public ProjectsViewModel(
         ProjectService projects, WalletService wallets, RewardImportService import,
-        IBlockchainRegistry chains, IProjectScope scope, IUserSettingsStore userSettings)
+        IBlockchainRegistry chains, IProjectScope scope, IUserSettingsStore userSettings,
+        IDialogService dialogs)
         : base("Projects")
     {
         _projects = projects;
@@ -55,31 +66,48 @@ public sealed class ProjectsViewModel : ViewModelBase
         _scope = scope;
         _chains = chains;
         _userSettings = userSettings;
+        _dialogs = dialogs;
         AvailableChains = new ObservableCollection<Blockchain>();
-        _selectedChain = AvailableChains.FirstOrDefault();
 
-        AddProjectCommand = new AsyncRelayCommand(AddProjectAsync, CanAddProject, ShowError);
-        DeleteProjectCommand = new AsyncRelayCommand(DeleteProjectAsync, () => SelectedProject is not null, ShowError);
-        ClearProjectDataCommand = new AsyncRelayCommand(ClearProjectDataAsync, () => SelectedProject is not null, ShowError);
-        SaveAllowedSourcesCommand = new AsyncRelayCommand(SaveAllowedSourcesAsync, () => SelectedProject is not null, ShowError);
-        AddWalletCommand = new AsyncRelayCommand(AddWalletAsync, CanAddWallet, ShowError);
-        ToggleWalletActiveCommand = new AsyncRelayCommand(ToggleWalletActiveAsync, () => SelectedWallet is not null, ShowError);
-        SaveWalletCommand = new AsyncRelayCommand(SaveWalletAsync, () => SelectedWallet is not null && !string.IsNullOrWhiteSpace(EditWalletAddress), ShowError);
-        DeleteWalletCommand = new AsyncRelayCommand(DeleteWalletAsync, () => SelectedWallet is not null, ShowError);
+        AddProjectCommand = new RelayCommand(BeginAddProject, () => !IsEditing);
+        EditProjectCommand = new RelayCommand(BeginEditProject, () => !IsEditing && SelectedProject is not null);
+        RemoveProjectCommand = new AsyncRelayCommand(RemoveProjectAsync, () => !IsEditing && SelectedProject is not null, ShowError);
+        SaveProjectCommand = new AsyncRelayCommand(SaveProjectAsync, () => IsProjectEditorOpen && !string.IsNullOrWhiteSpace(ProjectName), ShowProjectError);
+        CancelProjectCommand = new RelayCommand(CloseProjectEditor, () => IsProjectEditorOpen);
+        ClearProjectDataCommand = new AsyncRelayCommand(ClearProjectDataAsync, () => _projectEditor == EditorMode.Edit, ShowProjectError);
+
+        AddWalletCommand = new RelayCommand(BeginAddWallet, () => !IsEditing && SelectedProject is not null);
+        EditWalletCommand = new RelayCommand(BeginEditWallet, () => !IsEditing && SelectedWallet is not null);
+        RemoveWalletCommand = new AsyncRelayCommand(RemoveWalletAsync, () => !IsEditing && SelectedWallet is not null, ShowError);
+        ToggleWalletActiveCommand = new AsyncRelayCommand(ToggleWalletActiveAsync, () => !IsEditing && SelectedWallet is not null, ShowError);
+        SaveWalletCommand = new AsyncRelayCommand(SaveWalletAsync, CanSaveWallet, ShowWalletError);
+        CancelWalletCommand = new RelayCommand(CloseWalletEditor, () => IsWalletEditorOpen);
+    }
+
+    private enum EditorMode
+    {
+        None,
+        Add,
+        Edit,
     }
 
     public ObservableCollection<Project> Projects { get; } = new();
     public ObservableCollection<Wallet> Wallets { get; } = new();
     public ObservableCollection<Blockchain> AvailableChains { get; }
 
-    public AsyncRelayCommand AddProjectCommand { get; }
-    public AsyncRelayCommand DeleteProjectCommand { get; }
+    public RelayCommand AddProjectCommand { get; }
+    public RelayCommand EditProjectCommand { get; }
+    public AsyncRelayCommand RemoveProjectCommand { get; }
+    public AsyncRelayCommand SaveProjectCommand { get; }
+    public RelayCommand CancelProjectCommand { get; }
     public AsyncRelayCommand ClearProjectDataCommand { get; }
-    public AsyncRelayCommand SaveAllowedSourcesCommand { get; }
-    public AsyncRelayCommand AddWalletCommand { get; }
+
+    public RelayCommand AddWalletCommand { get; }
+    public RelayCommand EditWalletCommand { get; }
+    public AsyncRelayCommand RemoveWalletCommand { get; }
     public AsyncRelayCommand ToggleWalletActiveCommand { get; }
     public AsyncRelayCommand SaveWalletCommand { get; }
-    public AsyncRelayCommand DeleteWalletCommand { get; }
+    public RelayCommand CancelWalletCommand { get; }
 
     public Project? SelectedProject
     {
@@ -88,38 +116,46 @@ public sealed class ProjectsViewModel : ViewModelBase
         {
             if (SetProperty(ref _selectedProject, value))
             {
-                AllowedSourceAddresses = value is null
-                    ? string.Empty
-                    : string.Join(Environment.NewLine, value.RewardSourceAddresses);
+                OnPropertyChanged(nameof(WalletsHeader));
                 _ = LoadWalletsAsync();
             }
         }
     }
 
-    public Wallet? SelectedWallet
-    {
-        get => _selectedWallet;
-        set
-        {
-            if (SetProperty(ref _selectedWallet, value))
-            {
-                // Mirror into the editor fields so text boxes show the current state.
-                EditWalletAddress = value?.Address ?? string.Empty;
-                EditWalletLabel = value?.Label ?? string.Empty;
-                EditWalletNotes = value?.Notes ?? string.Empty;
-            }
-        }
-    }
+    public Wallet? SelectedWallet { get => _selectedWallet; set => SetProperty(ref _selectedWallet, value); }
 
-    public string NewProjectName { get => _newProjectName; set => SetProperty(ref _newProjectName, value); }
-    public string NewWalletAddress { get => _newWalletAddress; set => SetProperty(ref _newWalletAddress, value); }
-    public string NewWalletLabel { get => _newWalletLabel; set => SetProperty(ref _newWalletLabel, value); }
-    public Blockchain? SelectedChain { get => _selectedChain; set => SetProperty(ref _selectedChain, value); }
+    /// <summary>True while either form is open; locks lists and toolbars.</summary>
+    public bool IsEditing => IsProjectEditorOpen || IsWalletEditorOpen;
+    public bool IsBrowsing => !IsEditing;
 
-    public string EditWalletAddress { get => _editWalletAddress; set => SetProperty(ref _editWalletAddress, value); }
-    public string EditWalletLabel { get => _editWalletLabel; set => SetProperty(ref _editWalletLabel, value); }
-    public string EditWalletNotes { get => _editWalletNotes; set => SetProperty(ref _editWalletNotes, value); }
+    public bool IsProjectEditorOpen => _projectEditor != EditorMode.None;
+    public bool IsEditingExistingProject => _projectEditor == EditorMode.Edit;
+    public string ProjectEditorTitle => _projectEditor == EditorMode.Add ? "New project" : $"Edit project '{SelectedProject?.Name}'";
+    public string SaveProjectLabel => _projectEditor == EditorMode.Add ? "Create project" : "Save changes";
+
+    public string ProjectName { get => _projectName; set => SetProperty(ref _projectName, value); }
+    public string ProjectDescription { get => _projectDescription; set => SetProperty(ref _projectDescription, value); }
     public string AllowedSourceAddresses { get => _allowedSourceAddresses; set => SetProperty(ref _allowedSourceAddresses, value); }
+    public string ProjectEditorError { get => _projectEditorError; private set => SetProperty(ref _projectEditorError, value); }
+
+    public bool IsWalletEditorOpen => _walletEditor != EditorMode.None;
+    public bool IsAddingWallet => _walletEditor == EditorMode.Add;
+    public bool IsEditingExistingWallet => _walletEditor == EditorMode.Edit;
+    public string WalletEditorTitle => _walletEditor == EditorMode.Add
+        ? $"New wallet in '{SelectedProject?.Name}'"
+        : $"Edit wallet on {SelectedWallet?.BlockchainKey}";
+    public string SaveWalletLabel => _walletEditor == EditorMode.Add ? "Add wallet" : "Save changes";
+
+    public Blockchain? SelectedChain { get => _selectedChain; set => SetProperty(ref _selectedChain, value); }
+    public string WalletAddress { get => _walletAddress; set => SetProperty(ref _walletAddress, value); }
+    public string WalletLabel { get => _walletLabel; set => SetProperty(ref _walletLabel, value); }
+    public string WalletNotes { get => _walletNotes; set => SetProperty(ref _walletNotes, value); }
+    public string WalletEditorError { get => _walletEditorError; private set => SetProperty(ref _walletEditorError, value); }
+
+    public string WalletsHeader => SelectedProject is null ? "Wallets" : $"Wallets in '{SelectedProject.Name}'";
+    public bool HasNoProjects => Projects.Count == 0;
+    public bool HasNoWallets => SelectedProject is not null && Wallets.Count == 0;
+    public bool ShowNoChainsHint => IsAddingWallet && AvailableChains.Count == 0;
 
     public override async Task OnActivatedAsync(CancellationToken cancellationToken)
     {
@@ -152,15 +188,12 @@ public sealed class ProjectsViewModel : ViewModelBase
             AvailableChains.Add(chain);
         }
 
-        // Re-select an existing choice if still usable, otherwise the first available.
-        if (SelectedChain is null || AvailableChains.All(c => c.Key != SelectedChain.Key))
-        {
-            SelectedChain = AvailableChains.FirstOrDefault();
-        }
+        OnPropertyChanged(nameof(ShowNoChainsHint));
     }
 
     private async Task LoadProjectsAsync()
     {
+        var previous = SelectedProject?.Id;
         var projects = await _projects.GetAllAsync(CancellationToken.None).ConfigureAwait(true);
         Projects.Clear();
         foreach (var project in projects)
@@ -168,40 +201,123 @@ public sealed class ProjectsViewModel : ViewModelBase
             Projects.Add(project);
         }
 
-        SelectedProject ??= Projects.FirstOrDefault();
-        StatusMessage = $"{Projects.Count} project(s).";
+        OnPropertyChanged(nameof(HasNoProjects));
+        SelectedProject = Projects.FirstOrDefault(p => p.Id == previous) ?? Projects.FirstOrDefault();
+        StatusMessage = Projects.Count == 0
+            ? "No projects yet. Click '+ Add project' to start."
+            : $"{Projects.Count} project(s).";
     }
 
     private async Task LoadWalletsAsync()
     {
+        var previous = SelectedWallet?.Id;
         Wallets.Clear();
-        if (SelectedProject is null)
+        if (SelectedProject is not null)
+        {
+            var wallets = await _wallets.GetByProjectAsync(SelectedProject.Id, CancellationToken.None).ConfigureAwait(true);
+            foreach (var wallet in wallets)
+            {
+                Wallets.Add(wallet);
+            }
+        }
+
+        SelectedWallet = Wallets.FirstOrDefault(w => w.Id == previous);
+        OnPropertyChanged(nameof(HasNoWallets));
+    }
+
+    // ---- Project form -------------------------------------------------------------
+
+    private void BeginAddProject()
+    {
+        ProjectName = string.Empty;
+        ProjectDescription = string.Empty;
+        AllowedSourceAddresses = string.Empty;
+        OpenProjectEditor(EditorMode.Add);
+    }
+
+    private void BeginEditProject()
+    {
+        var project = SelectedProject!;
+        ProjectName = project.Name;
+        ProjectDescription = project.Description ?? string.Empty;
+        AllowedSourceAddresses = string.Join(Environment.NewLine, project.RewardSourceAddresses);
+        OpenProjectEditor(EditorMode.Edit);
+    }
+
+    private async Task SaveProjectAsync()
+    {
+        var addresses = ParseAddressList(AllowedSourceAddresses);
+        var description = string.IsNullOrWhiteSpace(ProjectDescription) ? null : ProjectDescription.Trim();
+
+        if (_projectEditor == EditorMode.Add)
+        {
+            var project = await _projects.CreateAsync(ProjectName, description, null, CancellationToken.None).ConfigureAwait(true);
+            if (addresses.Count > 0)
+            {
+                project.RewardSourceAddresses = addresses;
+                await _projects.UpdateAsync(project, CancellationToken.None).ConfigureAwait(true);
+            }
+
+            Projects.Add(project);
+            OnPropertyChanged(nameof(HasNoProjects));
+            CloseProjectEditor();
+            SelectedProject = project;
+            _scope.NotifyProjectListChanged();
+            StatusMessage = $"Created project '{project.Name}'. Next: click '+ Add wallet'.";
+            return;
+        }
+
+        var existing = SelectedProject!;
+        var nameChanged = !string.Equals(existing.Name, ProjectName.Trim(), StringComparison.Ordinal);
+        existing.Name = ProjectName.Trim();
+        existing.Description = description;
+        existing.RewardSourceAddresses = addresses;
+        await _projects.UpdateAsync(existing, CancellationToken.None).ConfigureAwait(true);
+        CloseProjectEditor();
+
+        // Project doesn't raise PropertyChanged; reload so the list shows a renamed project.
+        await LoadProjectsAsync().ConfigureAwait(true);
+        if (nameChanged)
+        {
+            _scope.NotifyProjectListChanged();
+        }
+
+        // The allowed-source list is also an income filter applied at display time, so the
+        // dashboard/transactions must re-evaluate what counts as income right away.
+        _scope.NotifyDataChanged();
+        StatusMessage = $"Saved project '{existing.Name}'.";
+    }
+
+    private async Task RemoveProjectAsync()
+    {
+        var project = SelectedProject!;
+        if (!_dialogs.Confirm(
+                "Remove project",
+                $"Remove project '{project.Name}' and its {Wallets.Count} wallet(s)?\n\n" +
+                "Imported rewards are kept. Use Edit → 'Clear imported rewards' first if you want them gone too."))
         {
             return;
         }
 
-        var wallets = await _wallets.GetByProjectAsync(SelectedProject.Id, CancellationToken.None).ConfigureAwait(true);
-        foreach (var wallet in wallets)
-        {
-            Wallets.Add(wallet);
-        }
-    }
-
-    private bool CanAddProject() => !string.IsNullOrWhiteSpace(NewProjectName);
-
-    private async Task AddProjectAsync()
-    {
-        var project = await _projects.CreateAsync(NewProjectName, null, null, CancellationToken.None).ConfigureAwait(true);
-        NewProjectName = string.Empty;
-        Projects.Add(project);
-        SelectedProject = project;
+        await _projects.DeleteAsync(project.Id, CancellationToken.None).ConfigureAwait(true);
+        Projects.Remove(project);
+        OnPropertyChanged(nameof(HasNoProjects));
+        SelectedProject = Projects.FirstOrDefault();
         _scope.NotifyProjectListChanged();
-        StatusMessage = $"Created project '{project.Name}'.";
+        StatusMessage = $"Removed project '{project.Name}' and its wallets (imported rewards kept).";
     }
 
     private async Task ClearProjectDataAsync()
     {
         var project = SelectedProject!;
+        if (!_dialogs.Confirm(
+                "Clear imported rewards",
+                $"Delete every imported reward of '{project.Name}'?\n\nThe project and its wallets are kept; " +
+                "you can re-import from the Import page."))
+        {
+            return;
+        }
+
         var deleted = await _import.ClearForProjectAsync(project.Id, CancellationToken.None).ConfigureAwait(true);
         _scope.NotifyDataChanged();
         StatusMessage = deleted == 0
@@ -209,56 +325,110 @@ public sealed class ProjectsViewModel : ViewModelBase
             : $"Cleared {deleted} reward(s) for '{project.Name}'. Wallets kept.";
     }
 
-    private async Task SaveAllowedSourcesAsync()
+    private void OpenProjectEditor(EditorMode mode)
     {
-        var project = SelectedProject!;
-        var addresses = (AllowedSourceAddresses ?? string.Empty)
-            .Split(new[] { '\r', '\n', ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(a => a.ToLowerInvariant())
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
-
-        project.RewardSourceAddresses = addresses;
-        await _projects.UpdateAsync(project, CancellationToken.None).ConfigureAwait(true);
-        // The allowed-source list is also an income filter applied at display time, so the
-        // dashboard/transactions must re-evaluate what counts as income right away.
-        _scope.NotifyDataChanged();
-        StatusMessage = addresses.Count == 0
-            ? "Source-address filter cleared (project counts every incoming transfer as income)."
-            : $"Saved {addresses.Count} allowed source address(es) for '{project.Name}'.";
+        ProjectEditorError = string.Empty;
+        _projectEditor = mode;
+        RaiseEditorStateChanged();
     }
 
-    private async Task DeleteProjectAsync()
+    private void CloseProjectEditor()
     {
-        var project = SelectedProject!;
-        await _projects.DeleteAsync(project.Id, CancellationToken.None).ConfigureAwait(true);
-        Projects.Remove(project);
-        SelectedProject = Projects.FirstOrDefault();
-        // Reload wallets for whatever's selected now (or clear).
-        await LoadWalletsAsync().ConfigureAwait(true);
-        _scope.NotifyProjectListChanged();
-        StatusMessage = $"Deleted project '{project.Name}' and its wallets (imported rewards kept).";
+        ProjectEditorError = string.Empty;
+        _projectEditor = EditorMode.None;
+        RaiseEditorStateChanged();
     }
 
-    private bool CanAddWallet() =>
-        SelectedProject is not null && SelectedChain is not null && !string.IsNullOrWhiteSpace(NewWalletAddress);
+    // ---- Wallet form --------------------------------------------------------------
 
-    private async Task AddWalletAsync()
+    private void BeginAddWallet()
     {
-        if (WalletAddressFormat.Validate(SelectedChain!.ChainType, NewWalletAddress) is { } addressError)
+        // A project's wallets usually share a chain, so default to the one it already uses.
+        var usedChainKey = Wallets.LastOrDefault()?.BlockchainKey;
+        SelectedChain = AvailableChains.FirstOrDefault(c => c.Key == usedChainKey)
+            ?? AvailableChains.FirstOrDefault(c => c.Key == SelectedChain?.Key)
+            ?? AvailableChains.FirstOrDefault();
+
+        WalletAddress = string.Empty;
+        WalletLabel = string.Empty;
+        WalletNotes = string.Empty;
+        OpenWalletEditor(EditorMode.Add);
+    }
+
+    private void BeginEditWallet()
+    {
+        var wallet = SelectedWallet!;
+        WalletAddress = wallet.Address;
+        WalletLabel = wallet.Label ?? string.Empty;
+        WalletNotes = wallet.Notes ?? string.Empty;
+        OpenWalletEditor(EditorMode.Edit);
+    }
+
+    private bool CanSaveWallet() =>
+        IsWalletEditorOpen && !string.IsNullOrWhiteSpace(WalletAddress) &&
+        (_walletEditor == EditorMode.Edit || SelectedChain is not null);
+
+    private async Task SaveWalletAsync()
+    {
+        var label = string.IsNullOrWhiteSpace(WalletLabel) ? null : WalletLabel.Trim();
+        var notes = string.IsNullOrWhiteSpace(WalletNotes) ? null : WalletNotes;
+
+        if (_walletEditor == EditorMode.Add)
         {
-            StatusMessage = addressError;
+            if (WalletAddressFormat.Validate(SelectedChain!.ChainType, WalletAddress) is { } addError)
+            {
+                WalletEditorError = addError;
+                return;
+            }
+
+            var wallet = await _wallets.CreateAsync(
+                SelectedProject!.Id, SelectedChain.Key, WalletAddress.Trim(), label,
+                CancellationToken.None).ConfigureAwait(true);
+            if (notes is not null)
+            {
+                wallet.Notes = notes;
+                await _wallets.UpdateAsync(wallet, CancellationToken.None).ConfigureAwait(true);
+            }
+
+            CloseWalletEditor();
+            await LoadWalletsAsync().ConfigureAwait(true);
+            SelectedWallet = Wallets.FirstOrDefault(w => w.Id == wallet.Id);
+            StatusMessage = $"Added wallet on {wallet.BlockchainKey}. Next: import its rewards on the Import page.";
             return;
         }
 
-        var wallet = await _wallets.CreateAsync(
-            SelectedProject!.Id, SelectedChain.Key, NewWalletAddress.Trim(),
-            string.IsNullOrWhiteSpace(NewWalletLabel) ? null : NewWalletLabel,
-            CancellationToken.None).ConfigureAwait(true);
-        NewWalletAddress = string.Empty;
-        NewWalletLabel = string.Empty;
-        Wallets.Add(wallet);
-        StatusMessage = $"Added wallet on {wallet.BlockchainKey}.";
+        var existing = SelectedWallet!;
+        if (_chains.TryGet(existing.BlockchainKey, out var chain) &&
+            WalletAddressFormat.Validate(chain.ChainType, WalletAddress) is { } editError)
+        {
+            WalletEditorError = editError;
+            return;
+        }
+
+        existing.Address = WalletAddress.Trim();
+        existing.Label = label;
+        existing.Notes = notes;
+        await _wallets.UpdateAsync(existing, CancellationToken.None).ConfigureAwait(true);
+        CloseWalletEditor();
+        // The Wallet entity doesn't raise PropertyChanged, so refresh the DataGrid from the store.
+        await LoadWalletsAsync().ConfigureAwait(true);
+        StatusMessage = $"Saved wallet {existing.Address}.";
+    }
+
+    private async Task RemoveWalletAsync()
+    {
+        var wallet = SelectedWallet!;
+        var name = wallet.Label is null ? wallet.Address : $"{wallet.Label} ({wallet.Address})";
+        if (!_dialogs.Confirm("Remove wallet", $"Remove wallet {name}?\n\nImported rewards are kept."))
+        {
+            return;
+        }
+
+        await _wallets.DeleteAsync(wallet.Id, CancellationToken.None).ConfigureAwait(true);
+        Wallets.Remove(wallet);
+        SelectedWallet = null;
+        OnPropertyChanged(nameof(HasNoWallets));
+        StatusMessage = $"Removed wallet {wallet.Address} (imported rewards kept).";
     }
 
     private async Task ToggleWalletActiveAsync()
@@ -268,33 +438,46 @@ public sealed class ProjectsViewModel : ViewModelBase
         await LoadWalletsAsync().ConfigureAwait(true);
     }
 
-    private async Task SaveWalletAsync()
+    private void OpenWalletEditor(EditorMode mode)
     {
-        var wallet = SelectedWallet!;
-        if (_chains.TryGet(wallet.BlockchainKey, out var chain) &&
-            WalletAddressFormat.Validate(chain.ChainType, EditWalletAddress) is { } addressError)
+        WalletEditorError = string.Empty;
+        _walletEditor = mode;
+        RaiseEditorStateChanged();
+    }
+
+    private void CloseWalletEditor()
+    {
+        WalletEditorError = string.Empty;
+        _walletEditor = EditorMode.None;
+        RaiseEditorStateChanged();
+    }
+
+    // ---- Shared -------------------------------------------------------------------
+
+    private void RaiseEditorStateChanged()
+    {
+        foreach (var name in new[]
+                 {
+                     nameof(IsEditing), nameof(IsBrowsing),
+                     nameof(IsProjectEditorOpen), nameof(IsEditingExistingProject), nameof(ProjectEditorTitle), nameof(SaveProjectLabel),
+                     nameof(IsWalletEditorOpen), nameof(IsAddingWallet), nameof(IsEditingExistingWallet), nameof(WalletEditorTitle), nameof(SaveWalletLabel),
+                     nameof(ShowNoChainsHint),
+                 })
         {
-            StatusMessage = addressError;
-            return;
+            OnPropertyChanged(name);
         }
 
-        wallet.Address = EditWalletAddress.Trim();
-        wallet.Label = string.IsNullOrWhiteSpace(EditWalletLabel) ? null : EditWalletLabel.Trim();
-        wallet.Notes = string.IsNullOrWhiteSpace(EditWalletNotes) ? null : EditWalletNotes;
-        await _wallets.UpdateAsync(wallet, CancellationToken.None).ConfigureAwait(true);
-        // The Wallet entity doesn't raise PropertyChanged, so refresh the DataGrid from the store.
-        await LoadWalletsAsync().ConfigureAwait(true);
-        StatusMessage = $"Saved wallet {wallet.Address}.";
+        System.Windows.Input.CommandManager.InvalidateRequerySuggested();
     }
 
-    private async Task DeleteWalletAsync()
-    {
-        var wallet = SelectedWallet!;
-        await _wallets.DeleteAsync(wallet.Id, CancellationToken.None).ConfigureAwait(true);
-        Wallets.Remove(wallet);
-        SelectedWallet = null;
-        StatusMessage = $"Deleted wallet {wallet.Address} (imported rewards kept).";
-    }
+    private static List<string> ParseAddressList(string? text) =>
+        (text ?? string.Empty)
+            .Split(new[] { '\r', '\n', ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(a => a.ToLowerInvariant())
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
 
     private void ShowError(Exception ex) => StatusMessage = $"Error: {ex.Message}";
+    private void ShowProjectError(Exception ex) => ProjectEditorError = ex.Message;
+    private void ShowWalletError(Exception ex) => WalletEditorError = ex.Message;
 }

@@ -6,53 +6,123 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance vm:ProjectsViewModel}">
+    <!--
+      Workflow: each column has a toolbar (+ Add / Edit / Remove) above its list. The
+      form for adding or editing appears only while it is in use, at the top of its
+      column, and closes on Save or Cancel. While a form is open the lists and toolbars
+      are disabled so the form can't drift out of sync with the selection.
+      Double-clicking a project or wallet opens it for editing.
+    -->
+    <UserControl.Resources>
+        <!-- Hide the inline error line until there is something to say. -->
+        <Style x:Key="EditorError" TargetType="TextBlock" BasedOn="{StaticResource ErrorText}">
+            <Style.Triggers>
+                <Trigger Property="Text" Value="">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="ColumnTitle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,0,0,8" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        </Style>
+        <Style x:Key="EditorTitle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#1A5FCC" />
+            <Setter Property="Margin" Value="0,0,0,8" />
+        </Style>
+    </UserControl.Resources>
+
     <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
-        <TextBlock Grid.Row="0" Text="Projects &amp; Wallets" Style="{StaticResource Heading}" />
+        <StackPanel Grid.Row="0">
+            <TextBlock Text="Projects &amp; Wallets" Style="{StaticResource Heading}" />
+            <TextBlock Style="{StaticResource Caption}" Margin="0,-4,0,6" TextWrapping="Wrap"
+                       Text="Start with '+ Add project', then select it and use '+ Add wallet' for each wallet that receives its rewards." />
+        </StackPanel>
 
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
                 <!-- Star widths on both sides so the GridSplitter actually shifts the boundary.
                      MinWidth keeps either side from collapsing to unusable. -->
-                <ColumnDefinition Width="320*" MinWidth="220" />
+                <ColumnDefinition Width="340*" MinWidth="280" />
                 <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="700*" MinWidth="320" />
+                <ColumnDefinition Width="680*" MinWidth="360" />
             </Grid.ColumnDefinitions>
 
-            <!-- Projects column -->
+            <!-- ============================ Projects column ============================ -->
             <Border Grid.Column="0" Style="{StaticResource Card}">
                 <DockPanel>
-                    <!-- Inner-most: Add/Delete actions -->
-                    <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
-                        <TextBlock Text="New project name" Style="{StaticResource Caption}" />
-                        <TextBox Text="{Binding NewProjectName, UpdateSourceTrigger=PropertyChanged}" />
-                        <StackPanel Orientation="Horizontal">
-                            <Button Content="Add project" Command="{Binding AddProjectCommand}" />
-                            <Button Content="Delete selected" Command="{Binding DeleteProjectCommand}" Margin="8,4,0,0" />
-                            <Button Content="Clear imported data" Command="{Binding ClearProjectDataCommand}" Margin="8,4,0,0" />
-                        </StackPanel>
-                    </StackPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="Projects" Style="{StaticResource ColumnTitle}" />
 
-                    <!-- Allowed source-address filter for the selected project -->
-                    <Border DockPanel.Dock="Bottom" BorderBrush="#E0E0E0" BorderThickness="0,1,0,0" Padding="0,8,0,0" Margin="0,8,0,0">
+                    <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+                        <Button Style="{StaticResource PrimaryButton}" Content="+ Add project" Command="{Binding AddProjectCommand}"
+                                ToolTip="Create a new project" />
+                        <Button Style="{StaticResource SecondaryButton}" Content="Edit" Command="{Binding EditProjectCommand}"
+                                ToolTip="Rename the selected project or change its allowed source addresses" />
+                        <Button Style="{StaticResource DangerButton}" Content="Remove" Command="{Binding RemoveProjectCommand}"
+                                ToolTip="Remove the selected project and its wallets (imported rewards are kept)" />
+                    </WrapPanel>
+
+                    <!-- Project form: only while adding or editing. -->
+                    <Border DockPanel.Dock="Top" Style="{StaticResource EditorPanel}"
+                            Visibility="{Binding IsProjectEditorOpen, Converter={StaticResource BoolToVisibility}}">
                         <StackPanel>
-                            <TextBlock Text="Allowed source addresses" FontWeight="SemiBold" />
-                            <TextBlock Text="Leave empty to accept every transfer. One address per line. Case-insensitive."
-                                       Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,4" />
+                            <TextBlock Text="{Binding ProjectEditorTitle}" Style="{StaticResource EditorTitle}" />
+
+                            <TextBlock Text="Name" Style="{StaticResource Caption}" />
+                            <TextBox Text="{Binding ProjectName, UpdateSourceTrigger=PropertyChanged}" />
+
+                            <TextBlock Text="Description (optional)" Style="{StaticResource Caption}" />
+                            <TextBox Text="{Binding ProjectDescription, UpdateSourceTrigger=PropertyChanged}" />
+
+                            <TextBlock Text="Allowed source addresses (optional)" Style="{StaticResource Caption}" />
+                            <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,2"
+                                       Text="Only transfers from these addresses count as rewards. One per line; empty accepts every transfer." />
                             <TextBox Text="{Binding AllowedSourceAddresses, UpdateSourceTrigger=PropertyChanged}"
-                                     AcceptsReturn="True" MinHeight="64" MaxHeight="120"
+                                     AcceptsReturn="True" MinHeight="56" MaxHeight="120"
                                      TextWrapping="NoWrap" VerticalScrollBarVisibility="Auto"
                                      FontFamily="Consolas" FontSize="12" />
-                            <Button Content="Save filter" Command="{Binding SaveAllowedSourcesCommand}" HorizontalAlignment="Left" />
+
+                            <TextBlock Text="{Binding ProjectEditorError}" Style="{StaticResource EditorError}" />
+
+                            <WrapPanel>
+                                <Button Style="{StaticResource PrimaryButton}" Content="{Binding SaveProjectLabel}"
+                                        Command="{Binding SaveProjectCommand}" IsDefault="{Binding IsProjectEditorOpen}" />
+                                <Button Style="{StaticResource SecondaryButton}" Content="Cancel"
+                                        Command="{Binding CancelProjectCommand}" IsCancel="{Binding IsProjectEditorOpen}" />
+                            </WrapPanel>
+
+                            <!-- Maintenance action, only for an existing project. -->
+                            <Border BorderBrush="#D5DEEA" BorderThickness="0,1,0,0" Margin="0,10,0,0" Padding="0,8,0,0"
+                                    Visibility="{Binding IsEditingExistingProject, Converter={StaticResource BoolToVisibility}}">
+                                <StackPanel>
+                                    <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,4"
+                                               Text="Delete this project's imported rewards (e.g. to re-import with a new filter). Wallets are kept." />
+                                    <Button Style="{StaticResource DangerButton}" Content="Clear imported rewards…"
+                                            Command="{Binding ClearProjectDataCommand}" HorizontalAlignment="Left" />
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
                     </Border>
 
-                    <TextBlock DockPanel.Dock="Top" Text="Projects" FontWeight="SemiBold" Margin="0,0,0,6" />
-                    <ListBox ItemsSource="{Binding Projects}" SelectedItem="{Binding SelectedProject}"
-                             DisplayMemberPath="Name" />
+                    <Grid>
+                        <ListBox ItemsSource="{Binding Projects}" SelectedItem="{Binding SelectedProject}"
+                                 DisplayMemberPath="Name" IsEnabled="{Binding IsBrowsing}" FontSize="13">
+                            <ListBox.InputBindings>
+                                <MouseBinding Gesture="LeftDoubleClick" Command="{Binding EditProjectCommand}" />
+                            </ListBox.InputBindings>
+                        </ListBox>
+                        <TextBlock Style="{StaticResource EmptyHint}" IsHitTestVisible="False"
+                                   Text="No projects yet.&#x0a;Click '+ Add project' to create your first one."
+                                   Visibility="{Binding HasNoProjects, Converter={StaticResource BoolToVisibility}}" />
+                    </Grid>
                 </DockPanel>
             </Border>
 
@@ -61,77 +131,89 @@
                           HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                           Background="#D8DCE1" ShowsPreview="True" />
 
-            <!-- Wallets column -->
+            <!-- ============================ Wallets column ============================= -->
             <Border Grid.Column="2" Style="{StaticResource Card}">
                 <DockPanel>
-                    <!-- Inner-most: Add wallet panel -->
-                    <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
-                        <TextBlock Text="Add wallet to selected project" FontWeight="SemiBold" Margin="0,0,0,4" />
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel Grid.Column="0" Margin="0,0,6,0">
-                                <TextBlock Text="Chain" Style="{StaticResource Caption}" />
-                                <ComboBox ItemsSource="{Binding AvailableChains}" SelectedItem="{Binding SelectedChain}"
-                                          DisplayMemberPath="Name" Margin="0,2,0,6" />
-                                <TextBlock Text="Label (optional)" Style="{StaticResource Caption}" />
-                                <TextBox Text="{Binding NewWalletLabel, UpdateSourceTrigger=PropertyChanged}" />
-                            </StackPanel>
-                            <StackPanel Grid.Column="1">
-                                <TextBlock Text="Address" Style="{StaticResource Caption}" />
-                                <TextBox Text="{Binding NewWalletAddress, UpdateSourceTrigger=PropertyChanged}" />
-                                <Button Content="Add wallet" Command="{Binding AddWalletCommand}" HorizontalAlignment="Left" />
-                            </StackPanel>
-                        </Grid>
-                    </StackPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="{Binding WalletsHeader}" Style="{StaticResource ColumnTitle}" />
 
-                    <!-- Above the Add panel: Edit selected wallet -->
-                    <Border DockPanel.Dock="Bottom" BorderBrush="#E0E0E0" BorderThickness="0,1,0,0" Padding="0,8,0,0" Margin="0,8,0,0">
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+                        <Button DockPanel.Dock="Right" Style="{StaticResource SecondaryButton}" Margin="0"
+                                Content="Active on/off" Command="{Binding ToggleWalletActiveCommand}"
+                                ToolTip="Inactive wallets are skipped by 'Import all active wallets'" />
+                        <WrapPanel>
+                            <Button Style="{StaticResource PrimaryButton}" Content="+ Add wallet" Command="{Binding AddWalletCommand}"
+                                    ToolTip="Add a wallet to the selected project" />
+                            <Button Style="{StaticResource SecondaryButton}" Content="Edit" Command="{Binding EditWalletCommand}"
+                                    ToolTip="Change the selected wallet's address, label or notes" />
+                            <Button Style="{StaticResource DangerButton}" Content="Remove" Command="{Binding RemoveWalletCommand}"
+                                    ToolTip="Remove the selected wallet (imported rewards are kept)" />
+                        </WrapPanel>
+                    </DockPanel>
+
+                    <!-- Wallet form: only while adding or editing. -->
+                    <Border DockPanel.Dock="Top" Style="{StaticResource EditorPanel}"
+                            Visibility="{Binding IsWalletEditorOpen, Converter={StaticResource BoolToVisibility}}">
                         <StackPanel>
-                            <TextBlock Text="Edit selected wallet" FontWeight="SemiBold" Margin="0,0,0,4" />
+                            <TextBlock Text="{Binding WalletEditorTitle}" Style="{StaticResource EditorTitle}" />
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="2*" />
                                 </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0" Margin="0,0,6,0">
-                                    <TextBlock Text="Address" Style="{StaticResource Caption}" />
-                                    <TextBox Text="{Binding EditWalletAddress, UpdateSourceTrigger=PropertyChanged}" />
+                                <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                                    <!-- The chain is fixed once a wallet exists; only choose it when adding. -->
+                                    <StackPanel Visibility="{Binding IsAddingWallet, Converter={StaticResource BoolToVisibility}}">
+                                        <TextBlock Text="Chain" Style="{StaticResource Caption}" />
+                                        <ComboBox ItemsSource="{Binding AvailableChains}" SelectedItem="{Binding SelectedChain}"
+                                                  DisplayMemberPath="Name" Margin="0,2,0,6" />
+                                    </StackPanel>
+                                    <TextBlock Text="Label (optional)" Style="{StaticResource Caption}" />
+                                    <TextBox Text="{Binding WalletLabel, UpdateSourceTrigger=PropertyChanged}" />
                                 </StackPanel>
                                 <StackPanel Grid.Column="1">
-                                    <TextBlock Text="Label" Style="{StaticResource Caption}" />
-                                    <TextBox Text="{Binding EditWalletLabel, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBlock Text="Address" Style="{StaticResource Caption}" />
+                                    <TextBox Text="{Binding WalletAddress, UpdateSourceTrigger=PropertyChanged}"
+                                             FontFamily="Consolas" FontSize="12" />
+                                    <TextBlock Text="Notes (optional)" Style="{StaticResource Caption}" />
+                                    <TextBox Text="{Binding WalletNotes, UpdateSourceTrigger=PropertyChanged}"
+                                             AcceptsReturn="True" MinHeight="40" MaxHeight="100" TextWrapping="Wrap"
+                                             VerticalScrollBarVisibility="Auto" />
                                 </StackPanel>
                             </Grid>
-                            <TextBlock Text="Notes" Style="{StaticResource Caption}" />
-                            <TextBox Text="{Binding EditWalletNotes, UpdateSourceTrigger=PropertyChanged}"
-                                     AcceptsReturn="True" MinHeight="40" TextWrapping="Wrap" />
-                            <StackPanel Orientation="Horizontal">
-                                <Button Content="Save changes" Command="{Binding SaveWalletCommand}" />
-                                <Button Content="Delete wallet" Command="{Binding DeleteWalletCommand}" Margin="8,4,0,0" />
-                            </StackPanel>
+
+                            <TextBlock Style="{StaticResource ErrorText}"
+                                       Text="No chain is available yet. Add an Etherscan (EVM) or Helius (Solana) API key on the Settings page first."
+                                       Visibility="{Binding ShowNoChainsHint, Converter={StaticResource BoolToVisibility}}" />
+                            <TextBlock Text="{Binding WalletEditorError}" Style="{StaticResource EditorError}" />
+
+                            <WrapPanel>
+                                <Button Style="{StaticResource PrimaryButton}" Content="{Binding SaveWalletLabel}"
+                                        Command="{Binding SaveWalletCommand}" IsDefault="{Binding IsWalletEditorOpen}" />
+                                <Button Style="{StaticResource SecondaryButton}" Content="Cancel"
+                                        Command="{Binding CancelWalletCommand}" IsCancel="{Binding IsWalletEditorOpen}" />
+                            </WrapPanel>
                         </StackPanel>
                     </Border>
 
-                    <!-- Header bar -->
-                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
-                        <Button DockPanel.Dock="Right" Content="Toggle active" Command="{Binding ToggleWalletActiveCommand}" />
-                        <TextBlock Text="Wallets" FontWeight="SemiBold" VerticalAlignment="Center" />
-                    </DockPanel>
-
-                    <!-- Center: wallets list -->
-                    <DataGrid ItemsSource="{Binding Wallets}" SelectedItem="{Binding SelectedWallet}"
-                              AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
-                              GridLinesVisibility="Horizontal">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Chain" Binding="{Binding BlockchainKey}" Width="100" />
-                            <DataGridTextColumn Header="Address" Binding="{Binding Address}" Width="*" />
-                            <DataGridTextColumn Header="Label" Binding="{Binding Label}" Width="140" />
-                            <DataGridCheckBoxColumn Header="Active" Binding="{Binding IsActive}" Width="60" />
-                        </DataGrid.Columns>
-                    </DataGrid>
+                    <Grid>
+                        <DataGrid ItemsSource="{Binding Wallets}" SelectedItem="{Binding SelectedWallet}"
+                                  AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
+                                  GridLinesVisibility="Horizontal" SelectionMode="Single"
+                                  IsEnabled="{Binding IsBrowsing}">
+                            <DataGrid.InputBindings>
+                                <MouseBinding Gesture="LeftDoubleClick" Command="{Binding EditWalletCommand}" />
+                            </DataGrid.InputBindings>
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Chain" Binding="{Binding BlockchainKey}" Width="100" />
+                                <DataGridTextColumn Header="Address" Binding="{Binding Address}" Width="*" />
+                                <DataGridTextColumn Header="Label" Binding="{Binding Label}" Width="140" />
+                                <DataGridCheckBoxColumn Header="Active" Binding="{Binding IsActive}" Width="60" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <TextBlock Style="{StaticResource EmptyHint}" IsHitTestVisible="False"
+                                   Text="No wallets in this project yet.&#x0a;Click '+ Add wallet' to add the wallet that receives its rewards."
+                                   Visibility="{Binding HasNoWallets, Converter={StaticResource BoolToVisibility}}" />
+                    </Grid>
                 </DockPanel>
             </Border>
         </Grid>
