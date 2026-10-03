@@ -30,7 +30,7 @@
       falls back to "{Major}.{Minor}.0".
     -->
     <VersionMajor>0</VersionMajor>
-    <VersionMinor>2</VersionMinor>
+    <VersionMinor>3</VersionMinor>
     <Version>$(VersionMajor).$(VersionMinor).0</Version>
     <!--
       The .NET SDK auto-appends the SourceRevisionId (full SHA) to InformationalVersion,
