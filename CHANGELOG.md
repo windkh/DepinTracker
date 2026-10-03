@@ -18,8 +18,17 @@ All notable changes to this project are documented here. The format is based on
   The allowed-source-address filter and "Clear imported rewards" moved into the
   project's edit form. Removing a project or wallet and clearing imported rewards now
   ask for confirmation. A new wallet defaults to the chain the project already uses.
+- Merged the Import page into the **Transactions** page. One **Import / Add ▾** menu
+  holds on-chain import (all active wallets, or one wallet) and manual reward / disposal
+  entry; the entry form only shows while adding and closes on Save or Cancel. Imported
+  and added rows appear in the table immediately, highlighted green. Disposals are now
+  listed in the table too (amber, negative amount, valued at their proceeds).
+- Unticked sources in the Transactions source summary stay hidden across reloads.
 
 ### Added
+- **Remove selected** (multi-select) and **Clear all…** on the Transactions page, both
+  with confirmation. Clear acts on the current project scope; under "all projects" it
+  also drops disposals that aren't linked to a wallet.
 - The portable data root is configurable through `Paths:DataRoot` in
   `config/appsettings.json` (default `data/` beside the executable). Debug builds point
   it at `data/` next to the solution file, so dev data no longer lives inside

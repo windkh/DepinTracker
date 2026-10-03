@@ -57,7 +57,7 @@
                     <TextBlock Text="Step 2 — Create your first project" FontWeight="SemiBold" Margin="0,0,0,4" />
                     <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,8">
                         A project is just a named grouping (e.g. "GEODNET" or "ONOCOY"). The
-                        Dashboard, Transactions, Reports and Import pages all filter to the
+                        Dashboard, Transactions and Reports pages all filter to the
                         currently-active project once you pick one in the nav rail.
                     </TextBlock>
 
@@ -129,8 +129,8 @@
                 <StackPanel>
                     <TextBlock Text="You're set!" FontWeight="SemiBold" Margin="0,0,0,4" />
                     <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,8">
-                        Continue to the Dashboard. The Import tab is where you click
-                        "Import all active wallets" to pull rewards on-chain. You can always
+                        Continue to the Dashboard. On the Transactions tab, "Import / Add" →
+                        "Import all active wallets" pulls rewards on-chain. You can always
                         come back to the Projects page to add more wallets or projects.
                     </TextBlock>
                     <Button Content="Continue to dashboard" Command="{Binding ContinueCommand}"

@@ -313,7 +313,7 @@ public sealed class ProjectsViewModel : ViewModelBase
         if (!_dialogs.Confirm(
                 "Clear imported rewards",
                 $"Delete every imported reward of '{project.Name}'?\n\nThe project and its wallets are kept; " +
-                "you can re-import from the Import page."))
+                "you can re-import from the Transactions page."))
         {
             return;
         }
@@ -393,7 +393,7 @@ public sealed class ProjectsViewModel : ViewModelBase
             CloseWalletEditor();
             await LoadWalletsAsync().ConfigureAwait(true);
             SelectedWallet = Wallets.FirstOrDefault(w => w.Id == wallet.Id);
-            StatusMessage = $"Added wallet on {wallet.BlockchainKey}. Next: import its rewards on the Import page.";
+            StatusMessage = $"Added wallet on {wallet.BlockchainKey}. Next: import its rewards on the Transactions page (Import / Add).";
             return;
         }
 

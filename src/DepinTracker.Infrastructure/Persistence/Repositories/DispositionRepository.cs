@@ -73,4 +73,26 @@ public sealed class DispositionRepository : IDispositionRepository
             "DELETE FROM dispositions WHERE WalletId IN @ids;",
             new { ids }, cancellationToken: cancellationToken));
     }
+
+    public async Task<int> DeleteByIdsAsync(IEnumerable<Guid> ids, CancellationToken cancellationToken)
+    {
+        var list = ids.Distinct().ToList();
+        if (list.Count == 0)
+        {
+            return 0;
+        }
+
+        await using var connection = _factory.CreateOpenConnection(StoreKind.Imported);
+        return await connection.ExecuteAsync(new CommandDefinition(
+            "DELETE FROM dispositions WHERE Id IN @list;",
+            new { list }, cancellationToken: cancellationToken));
+    }
+
+    public async Task<int> DeleteUnassignedAsync(CancellationToken cancellationToken)
+    {
+        await using var connection = _factory.CreateOpenConnection(StoreKind.Imported);
+        return await connection.ExecuteAsync(new CommandDefinition(
+            "DELETE FROM dispositions WHERE WalletId IS NULL;",
+            cancellationToken: cancellationToken));
+    }
 }

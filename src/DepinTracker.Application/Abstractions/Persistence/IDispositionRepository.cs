@@ -16,4 +16,10 @@ public interface IDispositionRepository
 
     /// <summary>Atomic wipe used by the project-level "clear imported data" path.</summary>
     Task<int> DeleteForWalletsAsync(IEnumerable<Guid> walletIds, CancellationToken cancellationToken);
+
+    /// <summary>Deletes individual disposals by id. Returns the rows deleted.</summary>
+    Task<int> DeleteByIdsAsync(IEnumerable<Guid> ids, CancellationToken cancellationToken);
+
+    /// <summary>Deletes disposals that are not linked to any wallet (manual entries without one).</summary>
+    Task<int> DeleteUnassignedAsync(CancellationToken cancellationToken);
 }

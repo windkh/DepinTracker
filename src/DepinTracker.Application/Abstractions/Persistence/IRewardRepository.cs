@@ -33,4 +33,10 @@ public interface IRewardRepository
     /// of reward rows deleted.
     /// </summary>
     Task<int> DeleteAllForWalletsAsync(IEnumerable<Guid> walletIds, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Deletes individual rewards by id (the user's explicit "remove" action). Import
+    /// sessions and raw responses are kept for provenance. Returns the rows deleted.
+    /// </summary>
+    Task<int> DeleteByIdsAsync(IEnumerable<Guid> ids, CancellationToken cancellationToken);
 }

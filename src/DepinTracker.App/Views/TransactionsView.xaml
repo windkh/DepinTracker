@@ -6,85 +6,240 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance vm:TransactionsViewModel}">
+    <!--
+      Workflow: the toolbar's "Import / Add ▾" menu holds every way to get rows in
+      (on-chain import for all active wallets or one wallet, manual reward, manual
+      disposal). The manual form appears only while an entry is being added, between
+      the toolbar and the grid, and closes on Save or Cancel. Rows written by the last
+      import or entry are highlighted green. Remove deletes the selected rows (multi-select
+      with Ctrl/Shift), Clear wipes everything in the current project scope.
+    -->
+    <UserControl.Resources>
+        <Style x:Key="EntryError" TargetType="TextBlock" BasedOn="{StaticResource ErrorText}">
+            <Style.Triggers>
+                <Trigger Property="Text" Value="">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="EntryTitle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#1A5FCC" />
+            <Setter Property="Margin" Value="0,0,0,8" />
+        </Style>
+        <DataTemplate x:Key="WalletItem">
+            <TextBlock>
+                <Run Text="{Binding Label, Mode=OneWay}" /><Run Text="  " /><Run Text="{Binding BlockchainKey, Mode=OneWay}" Foreground="#666" /><Run Text=" · " Foreground="#666" /><Run Text="{Binding Address, Mode=OneWay}" Foreground="#666" FontFamily="Consolas" />
+            </TextBlock>
+        </DataTemplate>
+    </UserControl.Resources>
+
     <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" MinHeight="120" />
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="220" MinHeight="80" />
+            <RowDefinition Height="200" MinHeight="80" />
         </Grid.RowDefinitions>
 
-        <DockPanel Grid.Row="0">
-            <Button DockPanel.Dock="Right" Content="Refresh" Command="{Binding RefreshCommand}" />
-            <TextBlock Text="Transactions" Style="{StaticResource Heading}" VerticalAlignment="Center" />
+        <StackPanel Grid.Row="0">
+            <TextBlock Text="Transactions" Style="{StaticResource Heading}" />
+            <TextBlock Style="{StaticResource Caption}" Margin="0,-4,0,8" TextWrapping="Wrap"
+                       Text="Use 'Import / Add' to fetch rewards on-chain or enter a reward or disposal by hand. New rows are highlighted green; select rows to remove them." />
+        </StackPanel>
+
+        <!-- ================================ Toolbar ================================ -->
+        <DockPanel Grid.Row="1" Margin="6,0,6,6">
+            <Button DockPanel.Dock="Right" Style="{StaticResource SecondaryButton}" Margin="0"
+                    Content="Refresh" Command="{Binding RefreshCommand}" />
+            <WrapPanel>
+                <Button x:Name="ImportMenuButton" Style="{StaticResource PrimaryButton}"
+                        Content="Import / Add  ▾" Click="OnImportMenuClick" IsEnabled="{Binding CanAct}"
+                        ToolTip="Import rewards on-chain, or add a reward or disposal manually">
+                    <Button.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="Import all active wallets" Command="{Binding ImportAllActiveCommand}" FontWeight="SemiBold" />
+                            <MenuItem Header="Import one wallet" ItemsSource="{Binding WalletImports}">
+                                <MenuItem.ItemContainerStyle>
+                                    <Style TargetType="MenuItem">
+                                        <Setter Property="Header" Value="{Binding Header}" />
+                                        <Setter Property="Command" Value="{Binding Command}" />
+                                    </Style>
+                                </MenuItem.ItemContainerStyle>
+                            </MenuItem>
+                            <Separator />
+                            <MenuItem Header="Add reward manually…" Command="{Binding AddRewardCommand}" />
+                            <MenuItem Header="Add disposal manually (sale / swap / transfer-out)…" Command="{Binding AddDisposalCommand}" />
+                        </ContextMenu>
+                    </Button.ContextMenu>
+                </Button>
+                <Button Style="{StaticResource DangerButton}" Content="{Binding RemoveLabel}" Command="{Binding RemoveSelectedCommand}"
+                        ToolTip="Delete the selected rows (Ctrl/Shift-click to select several)" />
+                <Button Style="{StaticResource DangerButton}" Content="Clear all…" Command="{Binding ClearAllCommand}"
+                        ToolTip="Delete every reward and disposal in the current project scope (projects and wallets are kept)" />
+            </WrapPanel>
         </DockPanel>
 
-        <Border Grid.Row="1" Style="{StaticResource Card}">
-            <DataGrid ItemsSource="{Binding Rows}"
-                      AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
-                      GridLinesVisibility="Horizontal" CanUserSortColumns="True">
-                <!-- Spam rows get a red tint + warning tooltip so they stand out while scrolling. -->
-                <DataGrid.RowStyle>
-                    <Style TargetType="DataGridRow">
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding IsSpam}" Value="True">
-                                <Setter Property="Background" Value="#FDE7E9" />
-                                <Setter Property="ToolTip"
-                                        Value="Likely spam / scam airdrop — worthless token whose symbol encodes a URL or lure. Do not interact with it." />
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </DataGrid.RowStyle>
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="" Binding="{Binding SpamFlag}" Width="30"
-                                        SortMemberPath="IsSpam" />
-                    <DataGridTextColumn Header="Date (UTC)" Binding="{Binding TimestampUtc, StringFormat=yyyy-MM-dd HH:mm}" Width="130" SortMemberPath="TimestampUtc" />
-                    <DataGridTextColumn Header="Wallet" Binding="{Binding WalletLabel}" Width="150" />
-                    <DataGridTextColumn Header="Chain" Binding="{Binding Chain}" Width="80" />
-                    <DataGridTextColumn Header="Token" Binding="{Binding TokenSymbol}" Width="80" />
-                    <DataGridTextColumn Header="Amount" Binding="{Binding Amount}" Width="110" />
-                    <DataGridTextColumn Header="Kind" Binding="{Binding Kind}" Width="80" />
-                    <DataGridTextColumn Header="From" Binding="{Binding FromAddress}" Width="150" />
-                    <DataGridTextColumn Binding="{Binding UnitPrice}" Width="110">
-                        <DataGridTextColumn.Header>
-                            <TextBlock Text="Unit price" ToolTip="Provider-resolved price per token on the reward's date, in the configured price currency (default USD)." />
-                        </DataGridTextColumn.Header>
-                    </DataGridTextColumn>
-                    <DataGridTextColumn Binding="{Binding FxRate}" Width="90">
-                        <DataGridTextColumn.Header>
-                            <TextBlock>
-                                <Run Text="FX (USD→" /><Run Text="{Binding DataContext.ReportingCurrency, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=OneWay}" /><Run Text=")" />
-                            </TextBlock>
-                        </DataGridTextColumn.Header>
-                    </DataGridTextColumn>
-                    <DataGridTemplateColumn Width="120">
-                        <DataGridTemplateColumn.Header>
-                            <TextBlock>
-                                <Run Text="Fiat value (" /><Run Text="{Binding DataContext.ReportingCurrency, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=OneWay}" /><Run Text=")" />
-                            </TextBlock>
-                        </DataGridTemplateColumn.Header>
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <!-- Hover the cell to see the full calculation: amount × unit price × FX rate. -->
-                                <TextBlock Text="{Binding FiatValue}" ToolTip="{Binding Calculation}" />
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                    <DataGridTextColumn Header="Tx hash" Binding="{Binding TxHash}" Width="*" />
-                    <DataGridTextColumn Header="Provider" Binding="{Binding Provider}" Width="90" />
-                </DataGrid.Columns>
-            </DataGrid>
+        <!-- ===================== Manual entry: only while adding ===================== -->
+        <Border Grid.Row="2" Style="{StaticResource EditorPanel}" Margin="6,0,6,6"
+                Visibility="{Binding IsEntryOpen, Converter={StaticResource BoolToVisibility}}">
+            <StackPanel>
+                <TextBlock Text="{Binding EntryTitle}" Style="{StaticResource EntryTitle}" />
+                <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,8"
+                           Visibility="{Binding IsDisposalEntry, Converter={StaticResource BoolToVisibility}}"
+                           Text="Record tokens you sold, swapped, spent, moved out or lost. The tax report pairs each disposal against your reward lots in FIFO order (Veräußerungsgewinne; DE §23 EStG: tax-free after one year)." />
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="2*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,8,0">
+                        <TextBlock Text="Wallet" Style="{StaticResource Caption}" />
+                        <ComboBox ItemsSource="{Binding Wallets}" SelectedItem="{Binding EntryWallet}"
+                                  ItemTemplate="{StaticResource WalletItem}" Margin="0,2,0,6" />
+                    </StackPanel>
+                    <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,8,0">
+                        <TextBlock Text="Token symbol" Style="{StaticResource Caption}" />
+                        <TextBox Text="{Binding TokenSymbol, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
+                    <StackPanel Grid.Row="0" Grid.Column="2">
+                        <TextBlock Text="Amount" Style="{StaticResource Caption}" />
+                        <TextBox Text="{Binding Amount, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,8,0">
+                        <TextBlock Text="Transaction hash (optional)" Style="{StaticResource Caption}" />
+                        <TextBox Text="{Binding TxHash, UpdateSourceTrigger=PropertyChanged}" FontFamily="Consolas" />
+                    </StackPanel>
+                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,8,0">
+                        <TextBlock Text="Date (UTC)" Style="{StaticResource Caption}" />
+                        <DatePicker SelectedDate="{Binding Date}" Margin="0,2,0,6" />
+                    </StackPanel>
+                    <StackPanel Grid.Row="1" Grid.Column="2">
+                        <TextBlock Text="Kind" Style="{StaticResource Caption}" />
+                        <ComboBox ItemsSource="{Binding Kinds}" SelectedItem="{Binding SelectedKind}" Margin="0,2,0,6"
+                                  Visibility="{Binding IsRewardEntry, Converter={StaticResource BoolToVisibility}}" />
+                        <ComboBox ItemsSource="{Binding DisposalKinds}" SelectedItem="{Binding SelectedDisposalKind}" Margin="0,2,0,6"
+                                  Visibility="{Binding IsDisposalEntry, Converter={StaticResource BoolToVisibility}}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,8,0"
+                                Visibility="{Binding IsDisposalEntry, Converter={StaticResource BoolToVisibility}}">
+                        <TextBlock Text="Notes (optional)" Style="{StaticResource Caption}" />
+                        <TextBox Text="{Binding Notes, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
+                    <StackPanel Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2"
+                                Visibility="{Binding IsDisposalEntry, Converter={StaticResource BoolToVisibility}}">
+                        <TextBlock Style="{StaticResource Caption}">
+                            <Run Text="Proceeds per unit (in " /><Run Text="{Binding ReportingCurrency, Mode=OneWay}" /><Run Text=", optional)" />
+                        </TextBlock>
+                        <TextBox Text="{Binding ProceedsPerUnit, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
+                </Grid>
+
+                <TextBlock Text="{Binding EntryError}" Style="{StaticResource EntryError}" />
+
+                <WrapPanel>
+                    <Button Style="{StaticResource PrimaryButton}" Content="{Binding SaveEntryLabel}"
+                            Command="{Binding SaveEntryCommand}" IsDefault="{Binding IsEntryOpen}" />
+                    <Button Style="{StaticResource SecondaryButton}" Content="Cancel"
+                            Command="{Binding CancelEntryCommand}" IsCancel="{Binding IsEntryOpen}" />
+                </WrapPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- ================================ Grid ================================ -->
+        <Border Grid.Row="3" Style="{StaticResource Card}">
+            <Grid>
+                <DataGrid x:Name="TransactionsGrid" ItemsSource="{Binding Rows}"
+                          AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
+                          GridLinesVisibility="Horizontal" CanUserSortColumns="True"
+                          SelectionMode="Extended" SelectionUnit="FullRow"
+                          SelectionChanged="OnGridSelectionChanged">
+                    <!-- Disposals get an amber tint, spam rows a red tint + warning tooltip, and rows
+                         written by the last import / entry a green tint (last trigger wins). -->
+                    <DataGrid.RowStyle>
+                        <Style TargetType="DataGridRow">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsDisposal}" Value="True">
+                                    <Setter Property="Background" Value="#FFF4E0" />
+                                    <Setter Property="ToolTip" Value="Disposal (outgoing): sale, swap, spend, transfer-out or loss." />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsSpam}" Value="True">
+                                    <Setter Property="Background" Value="#FDE7E9" />
+                                    <Setter Property="ToolTip"
+                                            Value="Likely spam / scam airdrop — worthless token whose symbol encodes a URL or lure. Do not interact with it." />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsNew}" Value="True">
+                                    <Setter Property="Background" Value="#DFF5E3" />
+                                    <Setter Property="FontWeight" Value="SemiBold" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.RowStyle>
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="" Binding="{Binding SpamFlag}" Width="30"
+                                            SortMemberPath="IsSpam" />
+                        <DataGridTextColumn Header="Date (UTC)" Binding="{Binding TimestampUtc, StringFormat=yyyy-MM-dd HH:mm}" Width="130" SortMemberPath="TimestampUtc" />
+                        <DataGridTextColumn Header="Wallet" Binding="{Binding WalletLabel}" Width="150" />
+                        <DataGridTextColumn Header="Chain" Binding="{Binding Chain}" Width="80" />
+                        <DataGridTextColumn Header="Token" Binding="{Binding TokenSymbol}" Width="80" />
+                        <DataGridTextColumn Header="Amount" Binding="{Binding Amount}" Width="110" />
+                        <DataGridTextColumn Header="Kind" Binding="{Binding Kind}" Width="90" />
+                        <DataGridTextColumn Header="From" Binding="{Binding FromAddress}" Width="150" />
+                        <DataGridTextColumn Binding="{Binding UnitPrice}" Width="110">
+                            <DataGridTextColumn.Header>
+                                <TextBlock Text="Unit price" ToolTip="Rewards: provider-resolved price per token on the reward's date, in the configured price currency (default USD). Disposals: the recorded proceeds per unit." />
+                            </DataGridTextColumn.Header>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Binding="{Binding FxRate}" Width="90">
+                            <DataGridTextColumn.Header>
+                                <TextBlock>
+                                    <Run Text="FX (USD→" /><Run Text="{Binding DataContext.ReportingCurrency, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=OneWay}" /><Run Text=")" />
+                                </TextBlock>
+                            </DataGridTextColumn.Header>
+                        </DataGridTextColumn>
+                        <DataGridTemplateColumn Width="120" SortMemberPath="FiatAmount">
+                            <DataGridTemplateColumn.Header>
+                                <TextBlock>
+                                    <Run Text="Fiat value (" /><Run Text="{Binding DataContext.ReportingCurrency, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=OneWay}" /><Run Text=")" />
+                                </TextBlock>
+                            </DataGridTemplateColumn.Header>
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <!-- Hover the cell to see the full calculation: amount × unit price × FX rate. -->
+                                    <TextBlock Text="{Binding FiatValue}" ToolTip="{Binding Calculation}" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="Tx hash" Binding="{Binding TxHash}" Width="*" />
+                        <DataGridTextColumn Header="Provider" Binding="{Binding Provider}" Width="90" />
+                    </DataGrid.Columns>
+                </DataGrid>
+                <TextBlock Style="{StaticResource EmptyHint}" IsHitTestVisible="False" Text="{Binding EmptyHint}"
+                           Visibility="{Binding HasNoRows, Converter={StaticResource BoolToVisibility}}" />
+            </Grid>
         </Border>
 
         <!-- Draggable divider to resize the transactions grid vs. the source summary. -->
-        <GridSplitter Grid.Row="2" Height="6" HorizontalAlignment="Stretch" VerticalAlignment="Center"
+        <GridSplitter Grid.Row="4" Height="6" HorizontalAlignment="Stretch" VerticalAlignment="Center"
                       ResizeDirection="Rows" ResizeBehavior="PreviousAndNext"
                       Background="#D8DCE1" ShowsPreview="True"
                       Cursor="SizeNS" />
 
         <!-- Per-source-address summary: count + cumulated value, spam flag, copy-to-filter,
              and a checkbox that filters the grid above to the selected sources. -->
-        <Border Grid.Row="3" Style="{StaticResource Card}">
+        <Border Grid.Row="5" Style="{StaticResource Card}">
             <DockPanel>
                 <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
@@ -92,7 +247,7 @@
                         <Button Content="Uncheck spam" Command="{Binding UncheckSpamSourcesCommand}" Padding="8,2" Margin="6,0,0,0" />
                     </StackPanel>
                     <TextBlock VerticalAlignment="Center" Style="{StaticResource Caption}"
-                               Text="Source addresses — tick to show in the grid above; Copy pastes into the project's allowed-sources filter." />
+                               Text="Reward source addresses — tick to show in the grid above; Copy pastes into the project's allowed-sources filter." />
                 </DockPanel>
                 <DataGrid ItemsSource="{Binding Sources}"
                           AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"

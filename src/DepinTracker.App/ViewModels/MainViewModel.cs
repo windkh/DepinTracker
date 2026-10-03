@@ -27,7 +27,6 @@ public sealed class MainViewModel : ObservableObject
         WelcomeViewModel welcome,
         DashboardViewModel dashboard,
         ProjectsViewModel projectsVm,
-        ImportViewModel import,
         TransactionsViewModel transactions,
         ReportsViewModel reports,
         SettingsViewModel settings)
@@ -39,7 +38,7 @@ public sealed class MainViewModel : ObservableObject
         // Welcome is intentionally NOT in Pages — it's an onboarding screen, not a
         // permanent nav-rail entry. We swap SelectedPage to it on empty start and
         // let the "Continue to dashboard" button switch back to the regular pages.
-        Pages = new ObservableCollection<ViewModelBase> { dashboard, projectsVm, import, transactions, reports, settings };
+        Pages = new ObservableCollection<ViewModelBase> { dashboard, projectsVm, transactions, reports, settings };
         _welcome.CompletionRequested += (_, _) => SelectedPage = _dashboard;
 
         AvailableScopes.Add(ProjectScopeChoice.All);

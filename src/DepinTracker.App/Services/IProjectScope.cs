@@ -2,7 +2,7 @@ namespace DepinTracker.App.Services;
 
 /// <summary>
 /// Shared "active project" state for the running app. A single scope drives the
-/// Dashboard, Transactions, Reports and Import pages so the user picks a project
+/// Dashboard, Transactions and Reports pages so the user picks a project
 /// once and every view filters to it. <see cref="ActiveProjectId"/> = null means
 /// "all projects" (the default). The selection persists across runs via the
 /// user-settings store.

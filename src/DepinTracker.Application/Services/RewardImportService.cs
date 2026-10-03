@@ -62,19 +62,44 @@ public sealed class RewardImportService
     /// </summary>
     public async Task<int> ClearForProjectAsync(Guid projectId, CancellationToken cancellationToken)
     {
+        var cleared = await ClearAsync(projectId, cancellationToken).ConfigureAwait(false);
+        return cleared.Rewards;
+    }
+
+    /// <summary>
+    /// Wipes imported rewards and disposals for one project's wallets, or for every wallet
+    /// when <paramref name="projectId"/> is null (which also drops disposals not linked to
+    /// a wallet). Projects and wallets are kept.
+    /// </summary>
+    public async Task<RemovalResult> ClearAsync(Guid? projectId, CancellationToken cancellationToken)
+    {
         var wallets = await _wallets.GetAllAsync(cancellationToken).ConfigureAwait(false);
-        var ids = wallets.Where(w => w.ProjectId == projectId).Select(w => w.Id).ToList();
-        if (ids.Count == 0)
+        var ids = wallets.Where(w => projectId is null || w.ProjectId == projectId.Value).Select(w => w.Id).ToList();
+
+        var rewards = await _rewards.DeleteAllForWalletsAsync(ids, cancellationToken).ConfigureAwait(false);
+        var disposals = await _dispositions.DeleteForWalletsAsync(ids, cancellationToken).ConfigureAwait(false);
+        if (projectId is null)
         {
-            return 0;
+            disposals += await _dispositions.DeleteUnassignedAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        var deleted = await _rewards.DeleteAllForWalletsAsync(ids, cancellationToken).ConfigureAwait(false);
-        var disposalsCleared = await _dispositions.DeleteForWalletsAsync(ids, cancellationToken).ConfigureAwait(false);
         _logger.LogInformation(
-            "Cleared imported data for project {ProjectId}: {RewardCount} reward(s) + {DisposalCount} disposal(s) across {WalletCount} wallet(s)",
-            projectId, deleted, disposalsCleared, ids.Count);
-        return deleted;
+            "Cleared imported data for {Scope}: {RewardCount} reward(s) + {DisposalCount} disposal(s) across {WalletCount} wallet(s)",
+            projectId?.ToString() ?? "all projects", rewards, disposals, ids.Count);
+        return new RemovalResult(rewards, disposals);
+    }
+
+    /// <summary>
+    /// Removes individual rewards and disposals the user picked. On-chain rewards come
+    /// back on the next import of their wallet, since their dedup key is gone with them.
+    /// </summary>
+    public async Task<RemovalResult> RemoveAsync(
+        IEnumerable<Guid> rewardIds, IEnumerable<Guid> disposalIds, CancellationToken cancellationToken)
+    {
+        var rewards = await _rewards.DeleteByIdsAsync(rewardIds, cancellationToken).ConfigureAwait(false);
+        var disposals = await _dispositions.DeleteByIdsAsync(disposalIds, cancellationToken).ConfigureAwait(false);
+        _logger.LogInformation("Removed {RewardCount} reward(s) and {DisposalCount} disposal(s) by user request", rewards, disposals);
+        return new RemovalResult(rewards, disposals);
     }
 
     /// <summary>

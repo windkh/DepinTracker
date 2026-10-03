@@ -60,7 +60,7 @@ the Projects page, so you can't accidentally create a wallet you can't import fr
 A project is just a named grouping (e.g. "GEODNET" or "ONOCOY"). Click **+ Add project**,
 type a **Name** and click **Create project**. The project shows up in the **Project scope**
 picker at the top of the nav rail — switching to it focuses the Dashboard,
-Transactions, Reports, and Import pages on this project.
+Transactions and Reports pages on this project.
 
 ### 3. Add the reward-receiving wallet
 
@@ -103,11 +103,12 @@ projects sometimes migrate distributors, and you want to control which address y
 trust. Two ways to find the current one:
 
 - **Easiest — let the app tell you.** Save the project with an empty allow-list
-  first, run **Import all active wallets** (Import page), then open the
-  **Transactions** tab. Sort by date, look at the **From** column for the ONOCOY
-  rows: the same address repeats on every payout — that's the distributor. Copy
-  it into the project's allow-list, **Clear imported data** (Projects page), and
-  re-import to filter cleanly.
+  first, open the **Transactions** tab and run **Import / Add ▾ → Import all
+  active wallets**. Sort by date, look at the **From** column for the ONOCOY
+  rows: the same address repeats on every payout — that's the distributor
+  (the *Reward source addresses* summary below the grid has a **Copy** button).
+  Paste it into the project's allow-list, click **Clear all…** on the
+  Transactions page, and re-import to filter cleanly.
 - **Manual — verify on a public explorer.** Open <https://solscan.io> and paste
   your wallet address. Filter the SPL token transfers to ONOCOY. The `from`
   field on any incoming reward is the distributor. Cross-check that the same
@@ -117,22 +118,32 @@ trust. Two ways to find the current one:
 The same recipe works for any DePIN token, on any chain: the reward source is
 always the address that pays *every* reward.
 
-### 5. Import
+### 5. Import (Transactions page)
 
-Open the **Import** tab. Click **Import all active wallets** — the explorer
+Open the **Transactions** tab, click **Import / Add ▾** and choose **Import all
+active wallets** (or **Import one wallet ▸** for a single one) — the explorer
 walks every active wallet in the current project scope, the per-project filter
 drops anything not on the allow-list, prices flow through DeFiLlama →
-CoinGecko, and FX flows through Frankfurter. Re-running is safe: imports are
+CoinGecko, and FX flows through Frankfurter. The imported rows appear in the
+table right away, highlighted green. Re-running is safe: imports are
 deduplicated by `(wallet, chain, txhash, symbol, amount)` — already-imported
 rows are skipped, not double-counted.
+
+The same menu has **Add reward manually…** for rewards that aren't on-chain;
+its form only shows while you're adding and closes on **Add reward** / **Cancel**.
+To delete rows, select them (Ctrl/Shift-click for several) and click **Remove
+selected**; **Clear all…** deletes every reward and disposal in the current
+project scope. Both ask first. Removed on-chain rewards come back on the next
+import unless the project's source-address filter excludes them.
 
 ### 6. Cross-check on the Dashboard / Transactions pages
 
 - **Dashboard** — portfolio value (rounded to 2 decimals), monthly fiat chart,
   monthly token chart, per-year income table (click a year to filter the charts).
-- **Transactions** — every imported reward with `Date · Token · Amount · From ·
-  Unit price · FX rate · Fiat value`. Hover the *Fiat value* cell to see the
-  exact `amount × price × FX = EUR` calculation that produced it.
+- **Transactions** — every imported reward and recorded disposal with `Date ·
+  Token · Amount · From · Unit price · FX rate · Fiat value`. Hover the *Fiat
+  value* cell to see the exact `amount × price × FX = EUR` calculation that
+  produced it. Disposals are tinted amber and shown with a negative amount.
 
 ### 7. Record disposals (only if you sold, swapped, spent or transferred out)
 
@@ -142,8 +153,8 @@ them on an exchange, swap them on a DEX, spend them, transfer them to a
 self-custody wallet, or lose them), §23 EStG kicks in: gains realised within
 one year of acquisition are taxable, gains after ≥ 1 year are *steuerfrei*.
 
-Open the **Import** tab and scroll to **Manual disposal entry**. Fill in:
-*Token symbol · Amount disposed · Date · Kind* (Sale / Swap / Spend /
+On the **Transactions** tab choose **Import / Add ▾ → Add disposal manually…**.
+Fill in: *Wallet · Token symbol · Amount · Date · Kind* (Sale / Swap / Spend /
 TransferOut / Loss) · *Proceeds per unit* in your reporting currency (leave
 0 for transfers between your own wallets) · optional *Tx hash* and *Notes*.
 Click **Add disposal**. The tax report will FIFO-match it against the

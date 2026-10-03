@@ -99,7 +99,6 @@ public partial class App : Application
                 services.AddSingleton<WelcomeViewModel>();
                 services.AddSingleton<DashboardViewModel>();
                 services.AddSingleton<ProjectsViewModel>();
-                services.AddSingleton<ImportViewModel>();
                 services.AddSingleton<TransactionsViewModel>();
                 services.AddSingleton<ReportsViewModel>();
                 services.AddSingleton<SettingsViewModel>();

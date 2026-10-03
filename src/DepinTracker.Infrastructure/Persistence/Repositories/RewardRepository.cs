@@ -160,4 +160,18 @@ public sealed class RewardRepository : IRewardRepository
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
         return rewards;
     }
+
+    public async Task<int> DeleteByIdsAsync(IEnumerable<Guid> ids, CancellationToken cancellationToken)
+    {
+        var list = ids.Distinct().ToList();
+        if (list.Count == 0)
+        {
+            return 0;
+        }
+
+        await using var connection = _factory.CreateOpenConnection(StoreKind.Imported);
+        return await connection.ExecuteAsync(new CommandDefinition(
+            "DELETE FROM reward_transactions WHERE Id IN @list;",
+            new { list }, cancellationToken: cancellationToken)).ConfigureAwait(false);
+    }
 }
